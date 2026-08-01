@@ -12,7 +12,8 @@
   function bodyText(opts){ try{ var b=opts&&opts.body; if(!b) return ""; var o=JSON.parse(b); return o.text||o.tekst||""; }catch(e){ return ""; } }
 
   // ── Echte Edge-TTS (Microsoft neural voices) via WebSocket; valt terug op de browserstem ──
-  function browserSpeak(text){ try{ if(!window.speechSynthesis||!text) return; window.speechSynthesis.cancel(); var u=new SpeechSynthesisUtterance(text); u.lang="nl-NL"; var v=(window.speechSynthesis.getVoices()||[]).filter(function(x){return /nl/i.test(x.lang);})[0]; if(v) u.voice=v; window.speechSynthesis.speak(u); }catch(e){} }
+  function playAudio(src){ return new Promise(function(res){ try{ var a=new Audio(src); a.onended=res; a.onerror=res; a.play().catch(res); }catch(e){ res(); } }); }
+  function browserSpeakP(text){ return new Promise(function(res){ try{ if(!window.speechSynthesis||!text){res();return;} window.speechSynthesis.cancel(); var u=new SpeechSynthesisUtterance(text); u.lang="nl-NL"; var v=(window.speechSynthesis.getVoices()||[]).filter(function(x){return /nl/i.test(x.lang);})[0]; if(v) u.voice=v; u.onend=res; u.onerror=res; window.speechSynthesis.speak(u); }catch(e){ res(); } }); }
   async function msGec(){ var ticks=Math.floor((Date.now()/1000+11644473600)/300)*300*10000000; var buf=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(ticks+"6A5AA1D4EAFF4E9FB37E23D68491D6F4")); return Array.from(new Uint8Array(buf)).map(function(b){return b.toString(16).padStart(2,"0");}).join("").toUpperCase(); }
   async function edgeTTS(text,voice){
     var token=await msGec();
@@ -32,14 +33,15 @@
       ws.onerror=function(){ if(!done){done=true;clearTimeout(to);rej("wserror");} };
     });
   }
-  function speak(text,voice){ if(!text) return; edgeTTS(text,voice).then(function(u){ new Audio(u).play().catch(function(){browserSpeak(text);}); }).catch(function(){ browserSpeak(text); }); }
+  function speakOnce(text,voice){ return edgeTTS(text,voice).then(function(u){ return playAudio(u); }).catch(function(){ return browserSpeakP(text); }); }
+  function speakChain(text,voice,pre,post){ if(!text) return; var s=Promise.resolve(); if(pre) s=s.then(function(){ return playAudio("intro.mp3"); }); s=s.then(function(){ return speakOnce(text,voice); }); if(post) s=s.then(function(){ return playAudio("outro.mp3"); }); }
 
   var _fetch=window.fetch;
   window.fetch=function(url,opts){
     url=''+url; var post=opts&&opts.method&&opts.method.toUpperCase()!=='GET';
     try{
       var mp=url.match(/\/api\/play_preset\/(\d+)/); if(mp){ playPresetAudio(mp[1]); return J({ok:true}); }
-      if(url.indexOf('/api/tts/say')>=0||url.indexOf('/api/tts/preview')>=0){ var o={}; try{o=JSON.parse(opts.body||"{}");}catch(e){} speak(o.text||o.tekst||"", o.voice); return J({ok:true,token:"demo"}); }
+      if(url.indexOf('/api/tts/say')>=0||url.indexOf('/api/tts/preview')>=0){ var o={}; try{o=JSON.parse(opts.body||"{}");}catch(e){} var pe=document.getElementById('ttsPreroll'), po=document.getElementById('ttsOutro'); var pre=pe?pe.checked:true, post=po?po.checked:false; speakChain(o.text||o.tekst||"", o.voice, pre, post); return J({ok:true,token:"demo"}); }
       if(url.indexOf('/api/tts/status/')>=0) return J({status:"done",token:"demo",ready:true});
       if(url.indexOf('/api/viz/rca')>=0) return J({bands:vizBands(),live:true});
       if(url.indexOf('/api/pi/status')>=0) return J({enabled:true,volume:38,host:"demo",control:true,explicit:false,explicit_name:"",commercial_next:false,jam_url:"",nowplaying:NP,history:[]});
@@ -74,6 +76,8 @@
     }
     // Huisstijl live wisselen (overschrijft de app-brandPick die alleen een label zette)
     window.brandPick=function(name){ applyBrand(name); };
+    // Presets: beheer-knoppen verbergen voor een schone demo-weergave
+    ['#editToggleBtn','.btn-stop','.new-preset-card','.tile-edit-btn'].forEach(function(sel){ [].forEach.call(document.querySelectorAll(sel),function(el){ el.style.display='none'; }); });
     // Overige formulieren (preset/gebruiker bewerken, instellingen): demo-feedback i.p.v. echt opslaan
     document.addEventListener('submit',function(e){ var f=e.target; if(f&&f.querySelector&&f.querySelector('#username')) return; e.preventDefault(); toast('Opgeslagen (demo — niet echt bewaard)'); if(/bewerken|edit/i.test(location.pathname+f.action)) setTimeout(function(){ history.length>1?history.back():(location.href='volume.html'); },1000); }, true);
     // Demo-badge

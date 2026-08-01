@@ -392,8 +392,8 @@ a,button{-webkit-tap-highlight-color:transparent}
       <a href="tts.html" class=""><span class="mi">record_voice_over</span>Text to Speech</a>
       
       <a href="beheer.html" class=""><span class="mi">settings</span>Beheer</a>
-      <a href="gebruikers.html" class=""><span class="mi">group</span>Gebruikers</a>
-      <a href="oidc.html" class="active"><span class="mi">key</span>OIDC</a>
+      <a href="gebruikers.html" class="active"><span class="mi">group</span>Gebruikers</a>
+      <a href="oidc.html" class=""><span class="mi">key</span>OIDC</a>
       <a href="logs.html" class=""><span class="mi">receipt_long</span>Logs</a>
       
     </div>
@@ -413,8 +413,8 @@ a,button{-webkit-tap-highlight-color:transparent}
     <a href="tts.html" class=""><span class="mi">record_voice_over</span> Text to Speech</a>
     
     <a href="beheer.html" class=""><span class="mi">settings</span> Beheer</a>
-    <a href="gebruikers.html" class=""><span class="mi">group</span> Gebruikers</a>
-    <a href="oidc.html" class="active"><span class="mi">key</span> OIDC</a>
+    <a href="gebruikers.html" class="active"><span class="mi">group</span> Gebruikers</a>
+    <a href="oidc.html" class=""><span class="mi">key</span> OIDC</a>
     <a href="logs.html" class=""><span class="mi">receipt_long</span> Logs</a>
     
     
@@ -424,75 +424,143 @@ a,button{-webkit-tap-highlight-color:transparent}
   </div>
   <div class="card-body">
     
-<h1>OpenID Connect configuratie</h1>
-<p class="help" style="margin-bottom:16px">Configureer hier een externe identity provider (bijv. Authentik, Keycloak, Azure AD).</p>
-
-
-
-
-<div style="max-width:680px">
-<form method="post" action="#">
-  <div class="card-item" style="margin-bottom:16px">
-    <h3 style="margin-top:0">Provider</h3>
-    <label style="display:flex;align-items:center;gap:8px;margin-bottom:12px;font-size:14px;font-weight:600">
-      <input type="checkbox" name="oidc_enabled" value="1" >
-      OIDC inschakelen
-    </label>
-    <div class="label">Naam (weergave op loginpagina)</div>
-    <input class="input" name="provider_name" value="" placeholder="Authentik" style="margin-bottom:10px">
-    <div class="label">Discovery URL</div>
-    <input class="input" name="discovery_url" value=""
-           placeholder="https://auth.voorbeeld.nl/application/o/mijn-app/.well-known/openid-configuration"
-           style="margin-bottom:6px">
-  </div>
-
-  <div class="card-item" style="margin-bottom:16px">
-    <h3 style="margin-top:0">Client credentials</h3>
-    <div class="row">
-      <div class="col">
-        <div class="label">Client ID</div>
-        <input class="input" name="client_id" value="" placeholder="client-id">
-      </div>
-      <div class="col">
-        <div class="label">Client Secret</div>
-        <input class="input" name="client_secret" type="password" value="" placeholder="geheim">
-      </div>
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:16px">
+      <a class="btn btn-inline btn-sm" href="gebruikers.html" style="width:auto"><span class="mi">arrow_back</span> Terug</a>
+      <h1 style="margin:0">Gebruiker bewerken</h1>
     </div>
-    <div style="height:10px"></div>
-    <div class="label">Redirect URI</div>
-    <input class="input" name="redirect_uri" value="https://127.0.0.1:5055/auth/callback"
-           placeholder="https://127.0.0.1:5055/auth/callback">
-    <div style="height:10px"></div>
-    <div class="label">Scopes</div>
-    <input class="input" name="scope" value="" placeholder="openid email profile groups">
-  </div>
+    
+    
+    <div style="max-width:720px">
 
-  <div class="card-item" style="margin-bottom:16px">
-    <h3 style="margin-top:0">Groepen → Rollen</h3>
-    <div class="row">
-      <div class="col">
-        <div class="label">Groepsclaim</div>
-        <input class="input" name="group_claim" value="" placeholder="groups">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap">
+        <strong style="font-size:16px;color:var(--green-dark)">Filiaalmanager</strong>
+        <span class="mono" style="font-size:13px;color:var(--fg3)">manager</span>
+        <span class="sbadge sbadge-local">local</span>
+        <span class="rbadge rbadge-user">user</span>
       </div>
+
+      <div class="subtabs" id="euTabs">
+        <button type="button" class="subtab active" data-tab="account" onclick="euTab('account')"><span class="mi">person</span> Account</button>
+        <button type="button" class="subtab" data-tab="rechten" onclick="euTab('rechten')"><span class="mi">verified_user</span> Rechten</button>
+        <button type="button" class="subtab" data-tab="presets" onclick="euTab('presets')"><span class="mi">queue_music</span> Presets</button>
+        <button type="button" class="subtab" data-tab="weergave" onclick="euTab('weergave')"><span class="mi">grid_view</span> Weergave</button>
+        <button type="button" class="subtab" data-tab="ww" onclick="euTab('ww')"><span class="mi">key</span> Wachtwoord</button>
+      </div>
+
+      <form method="post" action="#">
+        <div class="subpanel active" data-panel="account">
+          <div class="form-card">
+            <h3>Account</h3>
+            <div class="label">Weergavenaam</div>
+            <input class="input" name="display_name" value="Filiaalmanager" style="margin-bottom:14px">
+            <div class="label">Rol</div>
+            <select class="input" name="role" id="roleSel">
+              <option value="admin" >Admin</option><option value="operator" >Operator</option><option value="user" selected>User</option><option value="custom" >Custom</option>
+            </select>
+            <div class="help" style="margin-top:6px">Admin/Operator/Gebruiker hebben vaste rechten. Kies <strong>Aangepast</strong> om per recht te bepalen (tabs Rechten &amp; Presets).</div>
+          </div>
+        </div>
+
+        <div class="subpanel" data-panel="rechten">
+          <div class="form-card" id="rightsCard">
+            <h3>Rechten</h3>
+            <div class="help" id="rightsHint" style="margin-bottom:10px">Deze rechten gelden bij rol <strong>Aangepast</strong>.</div>
+            <div class="label" style="margin-bottom:6px">Volume &amp; Spotify</div>
+            <div class="help" style="margin-bottom:10px">Per subtab bepalen wat deze gebruiker mag. Knoppen zonder recht worden verborgen én serverside geweigerd. Zet <strong>tab zien</strong> uit om een subtab volledig te verbergen.</div>
+            <div class="form-card voldom" data-dom="omroep" style="margin-bottom:12px"><label class="switch-row" style="font-weight:700"><input type="checkbox" class="volview" data-dom="omroep" name="vol_omroep_view" value="1" > <span>PLUS Radio — tab zien</span></label><div class="voldom-sub" data-dom="omroep" style="margin-left:6px;padding-left:14px;border-left:2px solid var(--stroke-light);margin-top:8px"><label class="switch-row"><input type="checkbox" class="volcap" data-dom="omroep" name="vol_omroep_mute" value="1" > <span>Muten (aan/uit)</span></label><label class="switch-row"><input type="checkbox" class="volcap volvol" data-dom="omroep" name="vol_omroep_volume" value="1" > <span>Volume aanpassen</span></label><div class="vol-range" id="volRange_omroep" style="display:flex;gap:10px;align-items:center;margin:2px 0 10px 34px;flex-wrap:wrap"><span class="help" style="margin:0">Toegestaan bereik</span><input type="number" min="0" max="100" name="vol_omroep_vmin" value="0" style="width:72px" class="input"> <span class="help" style="margin:0">t/m</span><input type="number" min="0" max="100" name="vol_omroep_vmax" value="100" style="width:72px" class="input"> <span class="help" style="margin:0">%</span></div><label class="switch-row"><input type="checkbox" class="volcap" data-dom="omroep" name="vol_omroep_rca" value="1" > <span>PLUS Radio aan/uit (RCA)</span></label><label class="switch-row"><input type="checkbox" class="volcap" data-dom="omroep" name="vol_omroep_nowplaying" value="1" > <span>Huidige nummer + geschiedenis zien</span></label><label class="switch-row"><input type="checkbox" class="volcap" data-dom="omroep" name="vol_omroep_channel" value="1" > <span>Kanaal wisselen (Plus Main / Plus Easy)</span></label><label class="switch-row"><input type="checkbox" class="volcap" data-dom="omroep" name="vol_omroep_commercial" value="1" > <span>Commercials handmatig omroepen</span></label></div></div><div class="form-card voldom" data-dom="spotify" style="margin-bottom:12px"><label class="switch-row" style="font-weight:700"><input type="checkbox" class="volview" data-dom="spotify" name="vol_spotify_view" value="1" > <span>Spotify — tab zien</span></label><div class="voldom-sub" data-dom="spotify" style="margin-left:6px;padding-left:14px;border-left:2px solid var(--stroke-light);margin-top:8px"><label class="switch-row"><input type="checkbox" class="volcap" data-dom="spotify" name="vol_spotify_mute" value="1" > <span>Muten (aan/uit)</span></label><label class="switch-row"><input type="checkbox" class="volcap volvol" data-dom="spotify" name="vol_spotify_volume" value="1" > <span>Volume aanpassen</span></label><div class="vol-range" id="volRange_spotify" style="display:flex;gap:10px;align-items:center;margin:2px 0 10px 34px;flex-wrap:wrap"><span class="help" style="margin:0">Toegestaan bereik</span><input type="number" min="0" max="100" name="vol_spotify_vmin" value="0" style="width:72px" class="input"> <span class="help" style="margin:0">t/m</span><input type="number" min="0" max="100" name="vol_spotify_vmax" value="100" style="width:72px" class="input"> <span class="help" style="margin:0">%</span></div><label class="switch-row"><input type="checkbox" class="volcap" data-dom="spotify" name="vol_spotify_transport" value="1" > <span>Speler bedienen (vorige / play / volgende / seek)</span></label><label class="switch-row"><input type="checkbox" class="volcap" data-dom="spotify" name="vol_spotify_restart" value="1" > <span>Spotify herstarten</span></label><label class="switch-row"><input type="checkbox" class="volcap" data-dom="spotify" name="vol_spotify_history" value="1" > <span>Afgespeelde nummers zien</span></label><label class="switch-row"><input type="checkbox" class="volcap" data-dom="spotify" name="vol_spotify_jam" value="1" > <span>Jam meedoen tonen</span></label></div></div>
+            <div class="label" style="margin:14px 0 6px">Overig</div>
+            <label class="switch-row"><input type="checkbox" name="can_tts" value="1" checked> <span>Text to Speech gebruiken</span></label>
+            <label class="switch-row" style="margin-bottom:12px"><input type="checkbox" name="can_tts_generate" value="1" > <span>Text to Speech genereren (download WAV/MP3)</span></label>
+            <div class="label">Toegestane stemmen</div>
+            <label class="switch-row"><input type="checkbox" name="tts_voices_all" id="voicesAll" value="1" checked> <span>Alle stemmen toestaan</span></label>
+            <div class="chip-wrap" id="voiceChips"><label class="chip"><input type="checkbox" name="tts_voice_ids" value="nl-NL-MaartenNeural" checked> Maarten (man, NL)</label><label class="chip"><input type="checkbox" name="tts_voice_ids" value="nl-NL-ColetteNeural" checked> Colette (vrouw, NL)</label><label class="chip"><input type="checkbox" name="tts_voice_ids" value="nl-BE-ArnaudNeural" checked> Arnaud (man, BE)</label><label class="chip"><input type="checkbox" name="tts_voice_ids" value="nl-BE-DenaNeural" checked> Dena (vrouw, BE)</label></div>
+          </div>
+        </div>
+
+        <div class="subpanel" data-panel="presets">
+          <div class="form-card" id="presetsCard">
+            <h3>Toegestane presets</h3>
+            <div class="help" style="margin-bottom:10px">Geldt bij rol <strong>Aangepast</strong>.</div>
+            <label class="switch-row"><input type="checkbox" name="presets_all" id="presetsAll" value="1" checked> <span>Alle presets toestaan</span></label>
+            <div class="chip-wrap" id="presetChips"><label class="chip"><input type="checkbox" name="preset_ids" value="2" checked> Personeelsoproep – Slijterij <span class="mono" style="opacity:.6">#2</span></label><label class="chip"><input type="checkbox" name="preset_ids" value="3" checked> Personeelsoproep – Emballage <span class="mono" style="opacity:.6">#3</span></label><label class="chip"><input type="checkbox" name="preset_ids" value="4" checked> Personeelsoproep – Winkelwagens <span class="mono" style="opacity:.6">#4</span></label><label class="chip"><input type="checkbox" name="preset_ids" value="5" checked> Personeelsoproep – Kassa <span class="mono" style="opacity:.6">#5</span></label><label class="chip"><input type="checkbox" name="preset_ids" value="6" checked> Personeelsoproep – Broodafdeling <span class="mono" style="opacity:.6">#6</span></label></div>
+          </div>
+        </div>
+
+        <div class="subpanel" data-panel="weergave">
+          <div class="form-card">
+            <h3>Preset-weergave</h3>
+            <div style="display:flex;gap:10px;flex-wrap:wrap">
+              <label class="radio-card"><input type="radio" name="preset_style" value="label" checked> <span><span class="mi mi-sm">play_arrow</span> Met knop &laquo;Afspelen&raquo;</span></label>
+              <label class="radio-card"><input type="radio" name="preset_style" value="icon_only" > <span><span class="mi mi-sm">grid_view</span> Alleen icoon (klikbaar)</span></label>
+            </div>
+          </div>
+          <div class="form-card">
+            <h3>Inactiviteit</h3>
+            <label class="switch-row"><input type="checkbox" name="idle_redirect" value="1" > <span>Bij geen interactie automatisch terug naar de <strong>Muziek</strong>-pagina</span></label>
+            <div class="help" style="margin:6px 0 10px">Handig voor een balie-tablet (bijv. servicebalie): staat de pagina te lang stil, dan gaat hij vanzelf terug naar Muziek. De timer reset bij elke aanraking, dus tijdens gebruik gebeurt er niets.</div>
+            <div class="label">Na hoeveel seconden inactiviteit</div>
+            <input class="input" type="number" name="idle_redirect_secs" min="15" max="3600" value="60" style="max-width:140px">
+          </div>
+        </div>
+
+        <div id="euSave" style="margin-bottom:16px">
+          <button class="btn btn-primary btn-inline" type="submit" style="min-width:160px"><span class="mi">save</span> Wijzigingen opslaan</button>
+        </div>
+      </form>
+
+      <div class="subpanel" data-panel="ww"><div class="form-card"><h3>Wachtwoord wijzigen</h3><form method="post" action="#"><div class="row"><div class="col"><div class="label">Nieuw wachtwoord (min. 6 tekens)</div><input class="input" name="password" type="password" placeholder="Nieuw wachtwoord" required></div><div class="col"><div class="label">Bevestiging</div><input class="input" name="password2" type="password" placeholder="Herhaal wachtwoord" required></div></div><div style="height:10px"></div><button class="btn btn-inline" type="submit"><span class="mi">key</span> Wachtwoord wijzigen</button></form></div></div>
     </div>
-    <div style="height:10px"></div>
-    <div class="row">
-      <div class="col"><div class="label">Admin-groep</div><input class="input" name="group_admin" value=""></div>
-      <div class="col"><div class="label">Operator-groep</div><input class="input" name="group_operator" value=""></div>
-      <div class="col"><div class="label">Gebruiker-groep</div><input class="input" name="group_user" value=""></div>
-    </div>
-  </div>
 
-  <div style="display:flex;gap:10px">
-    <button class="btn btn-inline" type="submit">Opslaan</button>
-    <button class="btn btn-inline" type="submit" name="test" value="1" formaction="#">Discovery testen</button>
+    <script>
+    (function(){
+      window.euTab=function(name){
+        document.querySelectorAll('#euTabs .subtab').forEach(function(b){b.classList.toggle('active',b.dataset.tab===name);});
+        document.querySelectorAll('.subpanel').forEach(function(p){p.classList.toggle('active',p.dataset.panel===name);});
+        var save=document.getElementById('euSave');
+        if(save) save.style.display=(name==='ww')?'none':'block';
+      };
+      var roleSel=document.getElementById('roleSel');
+      function updRole(){
+        var custom=roleSel && roleSel.value==='custom';
+        ['rightsCard','presetsCard'].forEach(function(id){
+          var el=document.getElementById(id); if(el) el.classList.toggle('dimmed',!custom);
+        });
+      }
+      if(roleSel){ roleSel.addEventListener('change',updRole); updRole(); }
+      function bindAll(allId, wrapId){
+        var a=document.getElementById(allId), w=document.getElementById(wrapId);
+        if(!a||!w) return;
+        function upd(){ w.style.opacity=a.checked?'.45':'1'; w.querySelectorAll('input').forEach(function(i){i.disabled=a.checked;}); }
+        a.addEventListener('change',upd); upd();
+      }
+      bindAll('voicesAll','voiceChips');
+      bindAll('presetsAll','presetChips');
+      // Volume-/Spotify-rechten: sub-blok volgt 'tab zien', bereik volgt 'volume'.
+      document.querySelectorAll('.voldom').forEach(function(card){
+        var dom=card.dataset.dom;
+        var view=card.querySelector('.volview');
+        var sub=card.querySelector('.voldom-sub');
+        var volChk=card.querySelector('.volvol');
+        var range=card.querySelector('#volRange_'+dom);
+        function updView(){
+          var on=view.checked;
+          sub.style.opacity=on?'1':'.4';
+          sub.querySelectorAll('input').forEach(function(i){ if(i!==view) i.disabled=!on; });
+          if(on) updVol();
+        }
+        function updVol(){
+          if(!range||!volChk) return;
+          var on=volChk.checked && view.checked;
+          range.style.display=on?'flex':'none';
+        }
+        if(view){ view.addEventListener('change',updView); }
+        if(volChk){ volChk.addEventListener('change',updVol); }
+        updView();
+      });
+    })();
+    </script>
   </div>
-</form>
-
-
-</div>
-  </div>
-  <div class="footer"><a href="#" class="ver-link" onclick="openChangelog();return false" title="Bekijk de changelog">v7.8.2</a> &middot; Beheerder (demo) &middot; PLUS Demo Audiosysteem</div>
+  <div class="footer"><a href="#" class="ver-link" onclick="openChangelog();return false" title="Bekijk de changelog">v7.8.3</a> &middot; Beheerder (demo) &middot; PLUS Demo Audiosysteem</div>
 </div></div>
 
 <div id="mb" class="modal-backdrop" onclick="mbBackdropClick(event)">

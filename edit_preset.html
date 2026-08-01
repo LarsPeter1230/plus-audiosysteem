@@ -388,12 +388,12 @@ a,button{-webkit-tap-highlight-color:transparent}
     </div>
     <div class="tabs">
       <a href="volume.html" class=""><span class="mi">music_note</span>Muziek</a>
-      <a href="presets.html" class=""><span class="mi">queue_music</span>Presets</a>
+      <a href="presets.html" class="active"><span class="mi">queue_music</span>Presets</a>
       <a href="tts.html" class=""><span class="mi">record_voice_over</span>Text to Speech</a>
       
       <a href="beheer.html" class=""><span class="mi">settings</span>Beheer</a>
       <a href="gebruikers.html" class=""><span class="mi">group</span>Gebruikers</a>
-      <a href="oidc.html" class="active"><span class="mi">key</span>OIDC</a>
+      <a href="oidc.html" class=""><span class="mi">key</span>OIDC</a>
       <a href="logs.html" class=""><span class="mi">receipt_long</span>Logs</a>
       
     </div>
@@ -409,12 +409,12 @@ a,button{-webkit-tap-highlight-color:transparent}
   </div>
   <div class="nav-drawer" id="navDrawer">
     <a href="volume.html" class=""><span class="mi">music_note</span> Muziek</a>
-    <a href="presets.html" class=""><span class="mi">queue_music</span> Presets</a>
+    <a href="presets.html" class="active"><span class="mi">queue_music</span> Presets</a>
     <a href="tts.html" class=""><span class="mi">record_voice_over</span> Text to Speech</a>
     
     <a href="beheer.html" class=""><span class="mi">settings</span> Beheer</a>
     <a href="gebruikers.html" class=""><span class="mi">group</span> Gebruikers</a>
-    <a href="oidc.html" class="active"><span class="mi">key</span> OIDC</a>
+    <a href="oidc.html" class=""><span class="mi">key</span> OIDC</a>
     <a href="logs.html" class=""><span class="mi">receipt_long</span> Logs</a>
     
     
@@ -424,75 +424,116 @@ a,button{-webkit-tap-highlight-color:transparent}
   </div>
   <div class="card-body">
     
-<h1>OpenID Connect configuratie</h1>
-<p class="help" style="margin-bottom:16px">Configureer hier een externe identity provider (bijv. Authentik, Keycloak, Azure AD).</p>
+<style>
+.pe-preview{display:flex;align-items:center;gap:16px}
+.pe-preview .material-symbols-outlined{font-size:60px;color:var(--red)}
+.ip-backdrop{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(17,40,20,.55);z-index:9998;padding:16px}
+.ip-backdrop.show{display:flex}
+.ip-modal{width:min(680px,96vw);max-height:82vh;display:flex;flex-direction:column;background:#fff;border:1px solid var(--stroke);border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,.30);overflow:hidden}
+.ip-grid{overflow-y:auto;padding:14px;display:grid;grid-template-columns:repeat(auto-fill,minmax(78px,1fr));gap:8px}
+.ip-cell{display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 6px;border-radius:10px;border:1px solid var(--stroke-light);background:#f4f6f1;cursor:pointer}
+.ip-cell:hover{background:#eaf4d8}
+.ip-cell .material-symbols-outlined{font-size:30px;color:#80bd1d}
+.ip-cell small{font-size:10px;color:var(--fg3);text-align:center;word-break:break-all;line-height:1.2}
+</style>
 
-
-
-
-<div style="max-width:680px">
-<form method="post" action="#">
-  <div class="card-item" style="margin-bottom:16px">
-    <h3 style="margin-top:0">Provider</h3>
-    <label style="display:flex;align-items:center;gap:8px;margin-bottom:12px;font-size:14px;font-weight:600">
-      <input type="checkbox" name="oidc_enabled" value="1" >
-      OIDC inschakelen
-    </label>
-    <div class="label">Naam (weergave op loginpagina)</div>
-    <input class="input" name="provider_name" value="" placeholder="Authentik" style="margin-bottom:10px">
-    <div class="label">Discovery URL</div>
-    <input class="input" name="discovery_url" value=""
-           placeholder="https://auth.voorbeeld.nl/application/o/mijn-app/.well-known/openid-configuration"
-           style="margin-bottom:6px">
-  </div>
-
-  <div class="card-item" style="margin-bottom:16px">
-    <h3 style="margin-top:0">Client credentials</h3>
-    <div class="row">
-      <div class="col">
-        <div class="label">Client ID</div>
-        <input class="input" name="client_id" value="" placeholder="client-id">
-      </div>
-      <div class="col">
-        <div class="label">Client Secret</div>
-        <input class="input" name="client_secret" type="password" value="" placeholder="geheim">
-      </div>
-    </div>
-    <div style="height:10px"></div>
-    <div class="label">Redirect URI</div>
-    <input class="input" name="redirect_uri" value="https://127.0.0.1:5055/auth/callback"
-           placeholder="https://127.0.0.1:5055/auth/callback">
-    <div style="height:10px"></div>
-    <div class="label">Scopes</div>
-    <input class="input" name="scope" value="" placeholder="openid email profile groups">
-  </div>
-
-  <div class="card-item" style="margin-bottom:16px">
-    <h3 style="margin-top:0">Groepen → Rollen</h3>
-    <div class="row">
-      <div class="col">
-        <div class="label">Groepsclaim</div>
-        <input class="input" name="group_claim" value="" placeholder="groups">
-      </div>
-    </div>
-    <div style="height:10px"></div>
-    <div class="row">
-      <div class="col"><div class="label">Admin-groep</div><input class="input" name="group_admin" value=""></div>
-      <div class="col"><div class="label">Operator-groep</div><input class="input" name="group_operator" value=""></div>
-      <div class="col"><div class="label">Gebruiker-groep</div><input class="input" name="group_user" value=""></div>
-    </div>
-  </div>
-
-  <div style="display:flex;gap:10px">
-    <button class="btn btn-inline" type="submit">Opslaan</button>
-    <button class="btn btn-inline" type="submit" name="test" value="1" formaction="#">Discovery testen</button>
-  </div>
-</form>
-
-
+<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:16px">
+  <a class="btn btn-inline btn-sm" href="presets.html" style="width:auto"><span class="mi">arrow_back</span> Terug naar presets</a>
+  <h1 style="margin:0">Preset bewerken</h1>
 </div>
+
+
+
+<div style="max-width:620px">
+
+  <div class="form-card">
+    <div class="pe-preview">
+      <span class="material-symbols-outlined" id="pePreview">campaign</span>
+      <div>
+        <div class="label" style="margin:0">Preset #2</div>
+        <div id="peName" style="font-size:20px;font-weight:800;color:var(--green-dark)">Personeelsoproep – Slijterij</div>
+      </div>
+    </div>
   </div>
-  <div class="footer"><a href="#" class="ver-link" onclick="openChangelog();return false" title="Bekijk de changelog">v7.8.2</a> &middot; Beheerder (demo) &middot; PLUS Demo Audiosysteem</div>
+
+  <form method="post" action="#">
+    <div class="form-card">
+      <h3>Algemeen</h3>
+      <div class="label">Naam</div>
+      <input class="input" name="name" id="peNameInput" value="Personeelsoproep – Slijterij" oninput="document.getElementById('peName').textContent=this.value||'Preset 2'" style="margin-bottom:14px">
+
+      <div class="label">Icoon</div>
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:14px">
+        <span class="material-symbols-outlined" id="peIconPrev" style="font-size:34px;color:#80bd1d;min-width:40px;text-align:center"></span>
+        <input class="input" name="icon" id="peIconInput" placeholder="bijv. campaign" value=""
+               oninput="peIconChanged(this.value)" style="flex:1">
+        <button class="btn btn-sm" type="button" onclick="peOpenPicker()" style="width:auto"><span class="mi">search</span> Zoeken</button>
+      </div>
+
+      <div class="label">Gain % (0&ndash;200)</div>
+      <input class="input" type="number" name="gain" min="0" max="200" value="100" style="max-width:160px">
+    </div>
+
+    <div class="form-card">
+      <h3>Opties</h3>
+      <label class="switch-row"><input type="checkbox" name="admin_only" value="1" > <span>Alleen zichtbaar voor admin</span></label>
+      <label class="switch-row"><input type="checkbox" name="preroll_enabled" value="1" checked> <span>Preroll (intro) afspelen</span></label>
+      <label class="switch-row"><input type="checkbox" name="outro_enabled" value="1" checked> <span>Outro afspelen</span></label>
+    </div>
+
+    <button class="btn btn-primary btn-inline" type="submit" style="min-width:180px"><span class="mi">save</span> Wijzigingen opslaan</button>
+  </form>
+
+  <div class="form-card" style="margin-top:16px">
+    <h3>Audiobestand vervangen</h3>
+    <form method="post" action="#" enctype="multipart/form-data">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <input class="input" type="file" name="file" accept=".wav,.mp3,.m4a" required style="flex:1;min-width:200px">
+        <button class="btn btn-inline" type="submit" style="width:auto"><span class="mi">upload</span> Vervangen</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="form-card">
+    <h3 style="color:#c62828">Verwijderen</h3>
+    <p class="help" style="margin-bottom:10px">Dit verwijdert de preset en het audiobestand definitief.</p>
+    <form method="post" action="#" onsubmit="return confirm('Preset 2 definitief verwijderen?')">
+      <button class="btn btn-danger btn-inline" type="submit" style="width:auto"><span class="mi">delete</span> Preset verwijderen</button>
+    </form>
+  </div>
+</div>
+
+<div id="peIconPicker" class="ip-backdrop" onclick="if(event.target===this)peClosePicker()">
+  <div class="ip-modal">
+    <div style="padding:14px 18px;border-bottom:1px solid var(--stroke-light);display:flex;gap:10px;align-items:center">
+      <input id="peIconSearch" class="input" placeholder="Zoek icoon… (bijv. campaign, store, warning)" oninput="peRenderIcons(this.value)" style="flex:1">
+      <button class="btn btn-inline btn-sm" type="button" onclick="peClosePicker()" style="width:auto"><span class="mi">close</span> Sluiten</button>
+    </div>
+    <div id="peIconGrid" class="ip-grid"></div>
+  </div>
+</div>
+
+<script>
+const PE_ICONS = ["campaign", "mic", "volume_up", "record_voice_over", "speaker", "queue_music", "music_note", "headphones", "alarm", "schedule", "timer", "event", "today", "calendar_month", "notifications", "notification_important", "warning", "error", "info", "help", "priority_high", "report", "new_releases", "flag", "person", "group", "people", "badge", "supervisor_account", "engineering", "support_agent", "manage_accounts", "store", "local_grocery_store", "shopping_cart", "shopping_basket", "storefront", "local_mall", "point_of_sale", "local_bar", "liquor", "wine_bar", "sports_bar", "local_cafe", "coffee", "bakery_dining", "restaurant", "recycling", "delete", "cleaning_services", "build", "handyman", "construction", "home_repair_service", "directions_car", "local_shipping", "delivery_dining", "two_wheeler", "electric_car", "agriculture", "lock", "lock_open", "security", "verified", "shield", "key", "vpn_key", "fingerprint", "phone", "phone_in_talk", "call", "contact_phone", "headset_mic", "support", "bolt", "power", "electrical_services", "outlet", "settings", "tune", "device_hub", "star", "thumb_up", "celebration", "cake", "favorite", "emoji_events", "workspace_premium", "close", "check", "done", "add", "remove", "search", "refresh", "sync", "autorenew", "arrow_forward", "arrow_back", "arrow_upward", "arrow_downward", "open_in_new", "link", "local_pizza", "fastfood", "lunch_dining", "dinner_dining", "brunch_dining", "thermostat", "ac_unit", "water_drop", "opacity", "light_mode", "dark_mode", "monetization_on", "euro", "attach_money", "payments", "receipt", "savings", "account_balance", "inventory", "inventory_2", "warehouse", "shelves", "category", "label", "sell", "factory", "precision_manufacturing"];
+function peIconChanged(v){ document.getElementById('peIconPrev').textContent=v; document.getElementById('pePreview').textContent=v||'campaign'; }
+function peOpenPicker(){ document.getElementById('peIconSearch').value=''; peRenderIcons(''); document.getElementById('peIconPicker').classList.add('show'); document.getElementById('peIconSearch').focus(); }
+function peClosePicker(){ document.getElementById('peIconPicker').classList.remove('show'); }
+function peRenderIcons(q){
+  q=(q||'').toLowerCase().trim();
+  const list=q?PE_ICONS.filter(function(ic){return ic.includes(q);}):PE_ICONS;
+  const g=document.getElementById('peIconGrid'); g.innerHTML='';
+  list.forEach(function(ic){
+    const d=document.createElement('div'); d.className='ip-cell';
+    d.innerHTML='<span class="material-symbols-outlined">'+ic+'</span><small>'+ic+'</small>';
+    d.onclick=function(){ document.getElementById('peIconInput').value=ic; peIconChanged(ic); peClosePicker(); };
+    g.appendChild(d);
+  });
+  if(!list.length){ g.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:30px;color:var(--fg3)">Geen resultaten</div>'; }
+}
+document.addEventListener('keydown',function(e){ if(e.key==='Escape') peClosePicker(); });
+</script>
+  </div>
+  <div class="footer"><a href="#" class="ver-link" onclick="openChangelog();return false" title="Bekijk de changelog">v7.8.3</a> &middot; Beheerder (demo) &middot; PLUS Demo Audiosysteem</div>
 </div></div>
 
 <div id="mb" class="modal-backdrop" onclick="mbBackdropClick(event)">

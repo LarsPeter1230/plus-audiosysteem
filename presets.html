@@ -1,0 +1,849 @@
+<script src="mock.js"></script>
+
+<title>PLUS Audiosysteem</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" type="image/png" href="static/icon.png">
+<link rel="apple-touch-icon" href="static/icon.png">
+<link rel="shortcut icon" href="static/icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&family=DM+Mono:wght@400;500&family=Montserrat:wght@700;800;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet">
+<style>
+/* "PLUS Radio"-merk-lockup: het volledige PLUS-logo + RADIO in Montserrat.
+   Beide erven currentColor → wit op groene tabs, groen/donker op witte vlakken. */
+.pr-lockup{display:inline-flex;align-items:center;gap:.42em;white-space:nowrap;vertical-align:-2px}
+.pr-lockup svg{height:.8em;width:auto;display:block}
+.pr-radio{font-family:'Montserrat','Segoe UI',system-ui,sans-serif;font-weight:800;letter-spacing:.14em;font-size:.82em;line-height:1}
+/* ──────────────────────────────────────────────────────────────
+   PLUS huisstijl (licht) — gedestilleerd uit de plus.nl styleguide.
+   Zelfde class-namen als voorheen, zodat alle pagina's op exact
+   dezelfde plek/structuur blijven; alleen de visuele stijl verandert
+   van donker-glas naar de lichte PLUS-look.
+   Kleuren: Action Green #80bd1d (CTA), Dark Green #115013 (tekst/koppen),
+   wit vlak, neutrale grijzen (#333/#6c6c6c/#d8d8d8).
+   ────────────────────────────────────────────────────────────── */
+:root{
+  /* --red* = de primaire actie/CTA-kleur (Action Green). Naam behouden
+     voor compatibiliteit met bestaande inline-verwijzingen. */
+  --red:#80bd1d;--red-dark:#6aa018;--red-glow:rgba(128,189,29,0.30);
+  /* --gold* = merk-accent; op wit vertaald naar PLUS-bosgroen. */
+  --gold:#227647;--gold-dim:rgba(34,118,71,0.12);
+  --green-dark:#115013;              /* koppen, links, primaire tekst-acties */
+  --bg-page:#eef1ea;                 /* paginascherm achter de kaart */
+  --bg-card:#ffffff;
+  --bg-card-hover:#f5f7f2;
+  --bg-soft:#f4f6f1;                 /* subtiele sub-panelen (was rgba zwart) */
+  --stroke:#d8d8d8;
+  --stroke-light:#e7e9e3;
+  --stroke-dark:#c4c8bd;
+  --fg:#333333;--fg2:#4a4a4a;--fg3:#6c6c6c;
+  --btn:#ffffff;--btnh:#f0f2ec;
+  --danger:#fdeceb;--dangerborder:#f1b7b0;--dangertext:#c62828;
+  --radius:8px;--radius-sm:8px;
+  --btn-radius:24px 24px 24px 4px;   /* kenmerkende PLUS "spraakwolk"-knop */
+  --on-primary:#ffffff;              /* tekst/iconen op de gekleurde topbar (thema-afhankelijk) */
+  --accent-soft:#eaf4d8;             /* zachte merk-tint (o.a. geselecteerde chip) */
+  --shadow:0 1px 3px rgba(0,0,0,.20),0 1px 1px rgba(0,0,0,.14),0 2px 1px -1px rgba(0,0,0,.12);
+  --shadow-sm:0 1px 3px rgba(0,0,0,.12);
+  --font:"Open Sans","Gotham",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+  --serif:"Open Sans","Gotham",system-ui,sans-serif;
+  --mono:"DM Mono",ui-monospace,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+/* Touch: verwijder tap-delay + grijze tap-flash; app draait 90% op telefoon/tablet. */
+a,button,.btn,.tab,.tabs a,.pill,.k,.preset-tile-icon,input,select,textarea,label,[onclick]{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+html{-webkit-text-size-adjust:100%}
+html,body{height:100%;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+body{
+  font-family:var(--font);color:var(--fg);font-size:15px;line-height:1.55;
+  background-color:var(--bg-page);
+  min-height:100vh;
+}
+.wrap{min-height:100vh;display:flex;align-items:flex-start;justify-content:center;padding:clamp(10px,3vw,40px)}
+.card{width:min(1060px,96vw);background:var(--bg-card);border:1px solid var(--stroke);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
+.card-body{padding:clamp(16px,2.8vw,32px)}
+/* Kopbalk in Action Green met witte tekst — de PLUS header-look. */
+.topbar{
+  display:flex;align-items:center;gap:10px;justify-content:space-between;
+  padding:0 clamp(14px,2.8vw,30px);
+  background:var(--red);
+  box-shadow:2px 1px 6px 0 rgba(51,51,51,.20);
+  min-height:56px;
+}
+.topbar-logo{display:flex;align-items:center;gap:13px;white-space:nowrap;padding:10px 0;flex-shrink:0}
+.topbar-logo img{height:28px;width:auto;display:block}
+/* "Omroepsysteem" als lockup naast het PLUS-woordmerk: scheidingslijn +
+   hoofdletters met letterspatiëring, wit — sluit aan bij het logo als één geheel. */
+.topbar-logo span{
+  color:var(--on-primary);font-weight:800;font-size:12.5px;letter-spacing:.15em;text-transform:uppercase;
+  font-family:'Montserrat','Segoe UI',system-ui,sans-serif;line-height:1;
+  padding-left:13px;border-left:1.5px solid rgba(255,255,255,.45);
+}
+.tabs{display:flex;gap:4px;flex-wrap:wrap;padding:8px 0}
+.tabs a{
+  display:inline-block;padding:7px 15px;border-radius:999px;
+  border:1px solid transparent;background:transparent;
+  text-decoration:none;color:var(--on-primary);font-weight:600;font-size:13px;
+  transition:background .15s,color .15s;
+}
+.tabs a:hover{background:rgba(255,255,255,.18)}
+.tabs a.active{background:#fff;border-color:#fff;color:var(--green-dark);box-shadow:0 2px 6px rgba(0,0,0,.15)}
+.topright{display:flex;gap:8px;align-items:center;flex-wrap:wrap;flex-shrink:0}
+.pill{
+  padding:6px 14px;border-radius:999px;
+  border:1px solid rgba(255,255,255,.55);background:rgba(255,255,255,.12);
+  text-decoration:none;color:var(--on-primary);font-size:13px;font-weight:600;
+  white-space:nowrap;transition:background .15s;
+}
+.pill:hover{background:rgba(255,255,255,.25)}
+.pill-user{background:#fff;border-color:#fff;color:var(--green-dark)}
+h1{font-family:var(--serif);font-size:clamp(21px,2.6vw,26px);font-weight:800;margin-bottom:18px;color:var(--green-dark);line-height:1.2}
+h1 .gold{color:var(--red-dark)}
+h2{font-family:var(--serif);font-size:19px;font-weight:700;margin:20px 0 12px;color:var(--green-dark)}
+h3{font-size:15px;font-weight:700;margin:16px 0 10px;color:var(--fg)}
+.row{display:flex;flex-wrap:wrap;gap:16px}
+.col{flex:1 1 300px}
+.label{font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;margin-bottom:6px;color:var(--fg3)}
+hr{border:0;border-top:1px solid var(--stroke-light);margin:18px 0}
+.help{font-size:13px;color:var(--fg3);line-height:1.5}
+.mono{font-family:var(--mono)}
+/* Inline Material Symbol-icoon (vervangt emoji's in knoppen/tabs/koppen). */
+.material-symbols-outlined{font-variation-settings:'opsz' 24,'wght' 500,'GRAD' 0,'FILL' 0}
+.mi{font-family:'Material Symbols Outlined';font-weight:normal;font-style:normal;font-size:18px;line-height:1;letter-spacing:normal;text-transform:none;display:inline-block;white-space:nowrap;word-wrap:normal;direction:ltr;vertical-align:-4px;-webkit-font-feature-settings:'liga';font-feature-settings:'liga';-webkit-font-smoothing:antialiased}
+.mi-sm{font-size:16px;vertical-align:-3px}
+.btn .mi{margin-right:2px}
+.tabs a .mi,.nav-drawer a .mi,.pill .mi{font-size:18px;vertical-align:-4px;margin-right:3px}
+/* Touch-vriendelijke checkbox-rij (grotere hitbox, PLUS-groen vinkje). */
+.switch-row{display:flex;align-items:center;gap:10px;font-size:15px;color:var(--fg2);cursor:pointer;padding:6px 0;min-height:44px}
+.switch-row input[type=checkbox]{width:22px;height:22px;flex-shrink:0;accent-color:var(--red);cursor:pointer}
+/* Pill-selectie (stemmen, presets, weergave) — licht thema, touch-vriendelijk. */
+.chip{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--stroke);background:#fff;padding:9px 14px;border-radius:999px;font-size:14px;cursor:pointer;color:var(--fg2);min-height:44px}
+.chip input{accent-color:var(--red);width:18px;height:18px;flex-shrink:0}
+.chip:has(input:checked){border-color:var(--red);background:var(--accent-soft);color:var(--green-dark);font-weight:600}
+.chip-wrap{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+.radio-card{display:flex;align-items:center;gap:10px;border:1px solid var(--stroke);background:#fff;padding:12px 16px;border-radius:12px;cursor:pointer;font-size:15px;color:var(--fg2);min-height:52px;flex:1 1 200px}
+.radio-card input{accent-color:var(--red);width:20px;height:20px;flex-shrink:0}
+.radio-card:has(input:checked){border-color:var(--red);background:#eaf4d8;color:var(--green-dark);font-weight:600}
+/* Sectiekaart voor formulieren (gebruiker bewerken e.d.) */
+.form-card{border:1px solid var(--stroke);border-radius:var(--radius-sm);background:#fff;box-shadow:var(--shadow-sm);padding:18px;margin-bottom:16px}
+.form-card h3{margin-top:0;color:var(--green-dark)}
+.form-card.dimmed{opacity:.55}
+.form-card.dimmed input,.form-card.dimmed .chip,.form-card.dimmed label{pointer-events:none}
+/* Herbruikbare sub-tabs (gebruiker bewerken e.d.) */
+.subtabs{display:flex;gap:6px;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:6px;margin-bottom:18px;border-bottom:1px solid var(--stroke-light)}
+.subtab{display:inline-flex;align-items:center;gap:7px;white-space:nowrap;padding:10px 16px;border:1px solid var(--stroke);background:#fff;border-radius:24px 24px 24px 4px;color:var(--fg2);font-weight:600;font-size:14px;cursor:pointer;min-height:44px;flex-shrink:0}
+.subtab .mi{font-size:18px;vertical-align:-4px}
+.subtab:hover{background:var(--btnh)}
+.subtab.active{background:var(--red);border-color:var(--red);color:#fff}
+.subpanel{display:none}
+.subpanel.active{display:block}
+.input,textarea,select{
+  width:100%;padding:12px 14px;border-radius:var(--radius-sm);
+  border:1px solid var(--stroke);background:#fff;
+  font:inherit;color:var(--fg);transition:border-color .15s,box-shadow .15s;
+}
+.input::placeholder,textarea::placeholder{color:#999}
+.input:focus,textarea:focus,select:focus{outline:none;border-color:var(--green-dark);box-shadow:0 0 0 2px rgba(17,80,19,.12)}
+select option{background:#fff;color:var(--fg)}
+textarea{min-height:120px;resize:vertical}
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:7px;
+  padding:12px 18px;border-radius:var(--btn-radius);
+  border:1px solid var(--green-dark);background:#fff;
+  font:inherit;font-weight:700;font-size:14px;cursor:pointer;
+  color:var(--green-dark);text-decoration:none;
+  transition:background .18s,color .18s,box-shadow .18s;width:100%;
+}
+.btn:hover{background:var(--btnh)}
+.btn-primary{background:var(--red);border-color:var(--red);color:#fff;box-shadow:0 6px 16px var(--red-glow)}
+.btn-primary:hover{background:var(--red-dark)!important;border-color:var(--red-dark)}
+.btn-stop{background:var(--danger);border-color:var(--dangerborder);color:var(--dangertext)}
+.btn-stop:hover{background:#fbdcd8!important}
+.btn-danger{background:var(--danger);border-color:var(--dangerborder);color:var(--dangertext)}
+.btn-danger:hover{background:#fbdcd8!important}
+.btn-sm{padding:8px 13px;font-size:13px;border-radius:16px 16px 16px 4px}
+.btn-inline{width:auto}
+.btn-gold{background:#fff;border-color:var(--gold);color:var(--gold)}
+.btn-gold:hover{background:var(--gold-dim)!important}
+.range{-webkit-appearance:none;appearance:none;width:100%;height:14px;background:#e4e7df;border-radius:999px;border:1px solid var(--stroke)}
+.range::-webkit-slider-thumb{-webkit-appearance:none;width:26px;height:26px;border-radius:50%;background:var(--red);border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.25)}
+.range::-moz-range-thumb{width:24px;height:24px;border-radius:50%;background:var(--red);border:2px solid #fff}
+.badge{display:inline-block;padding:5px 12px;border-radius:999px;border:1px solid var(--stroke);background:#f4f6f1;font-weight:700;font-size:14px;color:var(--fg)}
+.table{width:100%;border-collapse:collapse;background:#fff;border:1px solid var(--stroke);border-radius:var(--radius-sm);overflow:hidden}
+.table th,.table td{padding:10px 13px;border-bottom:1px solid var(--stroke-light);text-align:left;font-size:14px;color:var(--fg2)}
+.table th{background:#f4f6f1;font-weight:700;color:var(--green-dark);text-transform:uppercase;font-size:11px;letter-spacing:.05em}
+.table tr:last-child td{border-bottom:none}
+.table tr:hover td{background:#f7f9f4}
+.card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px}
+.card-item{padding:16px;border-radius:var(--radius-sm);border:1px solid var(--stroke);background:#fff;box-shadow:var(--shadow-sm)}
+.preset-tile-icon{user-select:none;-webkit-tap-highlight-color:transparent}
+.preset-tile-icon:hover{background:#eaf4d8!important;transform:scale(1.03)}
+.preset-tile-icon:active{transform:scale(.97)}
+.rbadge{display:inline-block;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:700}
+.rbadge-admin{background:#fdeceb;color:#c62828;border:1px solid #f1b7b0}
+.rbadge-operator{background:var(--gold-dim);color:var(--gold);border:1px solid rgba(34,118,71,.35)}
+.rbadge-user{background:#eaf4d8;color:#4b7a12;border:1px solid #cbe3a0}
+.rbadge-custom{background:#efe9f7;color:#554DA7;border:1px solid #cdc2e8}
+.sbadge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700}
+.sbadge-local{background:var(--gold-dim);color:var(--gold)}
+.sbadge-sso{background:#efe9f7;color:#554DA7}
+.days{display:flex;flex-wrap:wrap;gap:8px}
+.days label{display:flex;align-items:center;gap:7px;border:1px solid var(--stroke);background:#fff;padding:7px 12px;border-radius:999px;font-size:14px;cursor:pointer;color:var(--fg2)}
+.pad{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;max-width:360px;margin:auto}
+.pad .k{padding:16px;border-radius:12px;border:1px solid var(--stroke);background:#fff;font-weight:800;font-size:20px;cursor:pointer;text-align:center;transition:background .12s,transform .1s;user-select:none;color:var(--green-dark);box-shadow:var(--shadow-sm)}
+.pad .k:hover{background:var(--btnh);transform:scale(1.04)}
+.codewin{letter-spacing:12px;font-size:26px;background:#fff;border:1px solid var(--stroke);border-radius:8px;padding:13px;text-align:center;font-weight:800;user-select:none;color:var(--green-dark)}
+.modal-backdrop{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(17,40,20,.55);z-index:9999;padding:20px}
+.modal{width:min(760px,94vw);max-height:82vh;overflow-y:auto;background:#fff;color:var(--fg);border:1px solid var(--stroke);border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,.30);padding:22px 24px}
+.modal .mactions{display:flex;justify-content:flex-end;margin-top:12px}
+.md-body{font-size:15px;line-height:1.7;color:var(--fg2)}
+.md-body h1,.md-body h2{font-family:var(--serif);color:var(--green-dark);margin:16px 0 8px}
+.md-body h1{font-size:22px}.md-body h2{font-size:18px}
+.md-body h3{font-size:15px;font-weight:700;color:var(--fg);margin:12px 0 6px}
+.md-body p{margin:0 0 10px}
+.md-body ul,.md-body ol{padding-left:20px;margin:0 0 10px}
+.md-body li{margin-bottom:4px}
+.md-body strong{color:var(--green-dark);font-weight:700}
+.md-body em{color:var(--gold);font-style:italic}
+.md-body code{font-family:var(--mono);font-size:13px;background:#f0f2ec;padding:2px 6px;border-radius:5px;color:var(--gold)}
+.md-body pre{background:#f4f6f1;border:1px solid var(--stroke);border-radius:8px;padding:12px;overflow-x:auto;margin:0 0 12px}
+.md-body pre code{background:none;padding:0;color:var(--fg2)}
+.md-body blockquote{border-left:3px solid var(--red);margin:0 0 10px;padding:6px 14px;background:#f4f6f1;border-radius:0 8px 8px 0;color:var(--fg2)}
+.md-body a{color:var(--green-dark);text-decoration:underline}
+.md-body hr{border:0;border-top:1px solid var(--stroke-light);margin:14px 0}
+.md-body table{width:100%;border-collapse:collapse;margin-bottom:12px;font-size:14px}
+.md-body table th,.md-body table td{padding:7px 10px;border:1px solid var(--stroke-light);text-align:left}
+.md-body table th{background:#f4f6f1;font-weight:700;color:var(--green-dark)}
+.alert{padding:11px 15px;border-radius:var(--radius-sm);margin-bottom:14px;font-size:14px;font-weight:600;border:1px solid}
+.alert-ok{background:#eaf4d8;border-color:#cbe3a0;color:#3d6a12}
+.alert-err{background:var(--danger);border-color:var(--dangerborder);color:var(--dangertext)}
+.alert-warn{background:#fff6e0;border-color:#f2d98a;color:#8a6d00}
+.footer{
+  padding:10px clamp(14px,2.8vw,30px);border-top:1px solid var(--stroke-light);
+  font-size:12px;color:var(--fg3);background:#f7f9f4;
+  display:flex;align-items:center;gap:8px;
+}
+.footer::before{content:'';display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--red);flex-shrink:0}
+.ver-link{color:var(--fg3);text-decoration:underline dotted;text-underline-offset:2px;cursor:pointer;transition:color .15s}
+.ver-link:hover{color:var(--green-dark)}
+.login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+.login-card{
+  width:min(420px,96vw);
+  background:#fff;
+  border:1px solid var(--stroke);border-radius:var(--radius);box-shadow:0 10px 40px rgba(0,0,0,.18);
+  padding:clamp(28px,5vw,44px);
+  border-top:4px solid var(--red);
+}
+.login-logo{font-family:var(--serif);font-size:26px;font-weight:800;color:var(--green-dark);margin-bottom:4px}
+.login-logo span{color:var(--red-dark)}
+.login-sub{font-size:13px;color:var(--fg3);margin-bottom:28px;font-style:italic}
+.divider{display:flex;align-items:center;gap:10px;margin:20px 0;font-size:13px;color:var(--fg3)}
+.divider::before,.divider::after{content:'';flex:1;border-top:1px solid var(--stroke-light)}
+.oidc-btn{
+  display:flex;align-items:center;justify-content:center;gap:8px;width:100%;
+  padding:11px 16px;border-radius:var(--radius-sm);
+  border:1px solid var(--stroke);background:#fff;
+  font:inherit;font-weight:600;font-size:14px;cursor:pointer;text-decoration:none;
+  color:var(--green-dark);transition:background .15s;
+}
+.oidc-btn:hover{background:var(--btnh)}
+.section-label{
+  font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--gold);margin-bottom:8px;display:block;
+}
+.table-wrap{width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:var(--radius-sm)}
+.lcbadge{display:inline-block;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:700;font-family:var(--mono);white-space:nowrap}
+.lc-login   {background:var(--gold-dim);color:var(--gold)}
+.lc-logout  {background:#eceee8;color:var(--fg3)}
+.lc-preset  {background:#eaf4d8;color:#4b7a12}
+.lc-tts     {background:#e4edff;color:#2a5bd7}
+.lc-admin   {background:#fdeceb;color:#c62828}
+.lc-sso     {background:#efe9f7;color:#554DA7}
+.lc-system  {background:#eceee8;color:var(--fg3)}
+.lc-schedule{background:#fff1d6;color:#a5730a}
+.lc-ha      {background:#d9f3f7;color:#0e7f92}
+.lc-rca     {background:#d9f5e4;color:#0e8a4a}
+.lc-3cx     {background:#ffe6cc;color:#b5620a}
+.lc-volume  {background:#e6e6ff;color:#4a4ad1}
+.hamburger{
+  display:none;flex-direction:column;gap:5px;cursor:pointer;
+  padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,.55);
+  background:rgba(255,255,255,.12);flex-shrink:0;
+}
+.hamburger span{display:block;width:20px;height:2px;background:#fff;border-radius:2px;transition:transform .2s,opacity .2s}
+.hamburger.open span:nth-child(1){transform:translateY(7px) rotate(45deg)}
+.hamburger.open span:nth-child(2){opacity:0}
+.hamburger.open span:nth-child(3){transform:translateY(-7px) rotate(-45deg)}
+.nav-drawer{
+  display:flex;flex-direction:column;gap:4px;
+  padding:0 clamp(14px,2.8vw,30px);
+  border-top:0 solid var(--stroke-light);
+  background:#f7f9f4;
+  max-height:0;opacity:0;overflow:hidden;
+  transition:max-height .3s cubic-bezier(.22,1,.36,1),opacity .22s ease,padding .3s ease;
+}
+.nav-drawer.open{max-height:70vh;opacity:1;padding:12px clamp(14px,2.8vw,30px);border-top-width:1px}
+.nav-drawer a{
+  display:block;padding:12px 14px;border-radius:var(--radius-sm);
+  border:1px solid var(--stroke);background:#fff;
+  text-decoration:none;color:var(--fg2);font-weight:600;font-size:15px;min-height:48px;
+  transition:background .15s,border-color .15s,transform .12s;
+}
+.nav-drawer a:active{transform:scale(.99)}
+.nav-drawer a.active{background:var(--red);border-color:var(--red);color:#fff}
+.log-filters{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;align-items:center}
+.log-filter-btn{
+  padding:5px 12px;border-radius:999px;border:1px solid var(--stroke);
+  background:#fff;color:var(--fg2);font-size:13px;font-weight:600;
+  cursor:pointer;transition:background .12s;
+}
+.log-filter-btn:hover,.log-filter-btn.on{background:var(--red);border-color:var(--red);color:#fff}
+/* Echt Spotify-logo in de logs (categorie-badge + filterknop); wit chipje zodat
+   het groene logo ook op de groene actieve knop zichtbaar blijft. */
+.lc-splogo{height:13px;width:auto;background:#fff;padding:2px 5px;border-radius:4px;vertical-align:-3px;display:inline-block;box-shadow:0 1px 2px rgba(0,0,0,.12)}
+.log-search{
+  flex:1;min-width:160px;padding:8px 12px;border-radius:999px;
+  border:1px solid var(--stroke);background:#fff;
+  color:var(--fg);font:inherit;font-size:13px;
+}
+.log-search::placeholder{color:#999}
+.log-search:focus{outline:none;border-color:var(--green-dark)}
+.tts-actions-panel{
+  border:1px solid #cbe3a0;
+  background:#f4f9ea;
+  border-radius:12px;
+  padding:16px;
+  margin-top:4px;
+}
+@media(max-width:720px){
+  .wrap{padding:0}
+  .card{border-radius:0;width:100%}
+  .card-body{padding:14px}
+  .card-grid{grid-template-columns:repeat(2,1fr);gap:12px}   /* 2 kolommen presets in portrait */
+  .col{flex:1 1 100%}
+  .topbar{flex-wrap:nowrap;min-height:56px;gap:8px}
+  .topbar-logo{font-size:15px;padding:10px 0;gap:9px}
+  .topbar-logo span{display:inline-block;font-size:10.5px;letter-spacing:.1em;padding-left:9px}
+  .tabs{display:none}
+  .topright{display:none}
+  .hamburger{display:flex;width:44px;height:44px;align-items:center;justify-content:center;gap:5px}
+  .table-wrap{width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:var(--radius-sm)}
+  .table{font-size:13px;min-width:480px}
+  .table th,.table td{padding:9px 10px}
+  .log-filters{gap:6px}
+  .log-filter-btn{font-size:13px;padding:7px 12px;min-height:38px}
+  .pad{max-width:100%}
+  /* Grotere tap-targets in portrait */
+  .btn{min-height:50px;font-size:15px}
+  .btn-sm{min-height:40px}
+  .input,textarea,select{font-size:16px;min-height:50px}   /* 16px voorkomt iOS-zoom bij focus */
+  .nav-drawer a{padding:14px 16px;font-size:16px;min-height:50px}
+  .days label{min-height:44px;padding:9px 14px}
+  .switch-row{min-height:50px;font-size:16px}
+  .range{height:22px}
+  .range::-webkit-slider-thumb{width:34px;height:34px}
+  .range::-moz-range-thumb{width:32px;height:32px}
+  h1{font-size:22px}
+}
+/* Heel smalle telefoons: presets weer 1 grote kolom mag ook — 2 is prima,
+   maar bij zeer kleine schermen iets meer ademruimte. */
+@media(max-width:360px){
+  .card-grid{gap:10px}
+}
+@media(min-width:721px){
+  .hamburger{display:none!important}
+  .nav-drawer{display:none!important}
+}
+/* Tablet / smal desktop: geen hamburger, maar de tabs passen niet op één regel
+   naast logo + gebruiker. Zet ze daarom netjes op een eigen, volledige tweede
+   rij (links uitgelijnd) i.p.v. verticaal gekneld in het midden. */
+@media(min-width:721px) and (max-width:1200px){
+  .topbar{flex-wrap:wrap;align-items:center;padding-top:0;padding-bottom:0}
+  .topbar-logo{order:1}
+  .topright{order:2}
+  .tabs{order:3;flex:1 1 100%;justify-content:flex-start;gap:6px;padding:0 0 10px}
+}
+/* ── App-brede, subtiele bewegingen (clean, niet over-the-top) ── */
+/* Bewust GEEN pagina-inlaad-animatie op de hoofdkaart: paginawissels moeten
+   (vrijwel) instant voelen. Alleen de losse inlogkaart mag zacht faden. */
+@keyframes page-in{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.plus-login,.login-card{animation:page-in .24s cubic-bezier(.22,1,.36,1) both}
+.btn,.pill,.tab,.tabs a,.subtab,.btab,.chip,.radio-card,.log-filter-btn,.tile-edit-btn{transition:background .16s ease,border-color .16s ease,color .16s ease,box-shadow .16s ease,transform .12s ease}
+.btn:active,.pill:active,.subtab:active,.btab:active,.log-filter-btn:active,.chip:active{transform:scale(.975)}
+.card-item{transition:box-shadow .18s ease,transform .12s ease,background .16s ease}
+.modal-backdrop,.np-backdrop,.ip-backdrop{transition:opacity .2s ease}
+a,button{-webkit-tap-highlight-color:transparent}
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important;scroll-behavior:auto!important}
+}
+</style>
+
+<style id="brandvars">:root{--red:#80bd1d;--red-dark:#6aa018;--red-glow:rgba(128,189,29,0.30);--gold:#227647;--gold-dim:rgba(34,118,71,0.12);--green-dark:#115013;--btn-radius:24px 24px 24px 4px;--on-primary:#ffffff;--accent-soft:#eaf4d8;}.chip:has(input:checked){background:#eaf4d8}.pr-lockup img{height:.9em;width:auto;display:block}</style>
+<div class="wrap"><div class="card">
+  <div class="topbar">
+    <div class="topbar-logo">
+      <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2MDkuMDkgMTEzLjUiIGZpbGw9IiNmZmZmZmYiPjxwYXRoIGQ9Ik01My4wMywyNi41NXYxNy42OGMwLDQuODgtMy45Niw4Ljg0LTguODQsOC44NGgtMTcuNjhDMTEuODcsNTMuMDYsMCw0MS4xOSwwLDI2LjU1UzExLjg3LjAzLDI2LjUyLjAzczI2LjUyLDExLjg3LDI2LjUyLDI2LjUyIi8+PHBhdGggZD0iTTUzLjAzLDg2Ljk1di0xNy42OGMwLTQuODgtMy45Ni04LjgzLTguODQtOC44M2gtMTcuNjhjLTE0LjY0LDAtMjYuNTIsMTEuODctMjYuNTIsMjYuNTFzMTEuODcsMjYuNTIsMjYuNTIsMjYuNTIsMjYuNTItMTEuODcsMjYuNTItMjYuNTIiLz48cGF0aCBkPSJNNjAuMzYsODYuOTZ2LTE3LjY4YzAtNC44OCwzLjk2LTguODQsOC44NC04Ljg0aDE3LjY4YzE0LjY0LDAsMjYuNTEsMTEuODcsMjYuNTEsMjYuNTFzLTExLjg3LDI2LjUyLTI2LjUxLDI2LjUyLTI2LjUyLTExLjg3LTI2LjUyLTI2LjUyIi8+PHBhdGggZD0iTTYwLjQxLDI2LjU1djE3LjY4YzAsNC44OCwzLjk2LDguODQsOC44NCw4Ljg0aDE3LjY4YzE0LjY1LDAsMjYuNTItMTEuODcsMjYuNTItMjYuNTFTMTAxLjU3LjAzLDg2LjkyLjAzcy0yNi41MSwxMS44Ny0yNi41MSwyNi41MiIvPjxwYXRoIGQ9Ik02MDIsMTVjMCw3LjI0LTUuODcsMTMuMTEtMTMuMSwxMy4xMS0uNzgsMC0xLjUzLS4wNy0yLjI4LS4xOS01LjQ0LS45Ni0xMS4xOS0xLjUtMTcuMTQtMS41LTYuNiwwLTE4LjA4LjE2LTE4LjA4LDcuMjMsMCwxNC4zLDU3LjY5Ljc5LDU3LjY5LDQzLjA3LDAsMjkuNC0yOS4wOCwzNi43OS01My40NSwzNi43OS0xMi4yOSwwLTIyLjk1LS45LTM0LjI1LTIuOTItNi4yNC0xLjAxLTExLjAzLTYuNDItMTEuMDMtMTIuOTV2LTE3Ljc2YzExLjMzLDQuNzIsMjUuMTYsNy4yMywzNy43Myw3LjIzLDkuOTEsMCwxOC44Ny0yLjA0LDE4Ljg3LTcuNTUsMC0xNC43OC01Ny42OS0xLjQxLTU3LjY5LTQ0LjAyLDAtMzAuMTgsMzEuNDQtMzUuNTIsNTYuNDQtMzUuNTIsMTEuNzksMCwyNC44NCwxLjQxLDM2LjMxLDMuNzd2MTEuMjNoLS4wMloiLz48cGF0aCBkPSJNMTQ4LjIyLDExMS40VjE0Ljc3YzAtNy4yNCw1Ljg3LTEzLjExLDEzLjExLTEzLjExaDU5LjM2YzE3LjEzLDAsNDAuMjUsOC4xNyw0MC4yNSwzNy43M3MtMTguMzksNDAuNC00MC40LDQwLjRoLTMwLjE4djE4LjQ5YzAsNy4yNC01Ljg3LDEzLjEtMTMuMSwxMy4xaC0yOS4wM1pNMTkwLjM1LDI3LjE0djI3LjJoOC4xN2MxMC4wNiwwLDIwLjI4LTEuODksMjAuMjgtMTQuMTVzLTEwLjIyLTEzLjA1LTIwLjQ0LTEzLjA1aC04LjAyWiIvPjxwYXRoIGQ9Ik00ODguMjMsNjYuMTJjMCwzNS41My0yMS44NSw0Ny4xNy01NS4wMiw0Ny4xNy0zMC42NiwwLTU0LjcxLTEyLjU4LTU0LjcxLTQ0Ljk3VjEuNjdoMjkuMDNjNy4yNCwwLDEzLjExLDUuODcsMTMuMTEsMTMuMTF2NTEuOThjMCwxMC4zOCwyLjk5LDE4LjI0LDEzLjA1LDE4LjI0LDExLDAsMTMuMzYtNy4zOSwxMy4zNi0xOC4wOFYxLjY3czI4LjA2LDAsMjguMDYsMGM3LjI1LDAsMTMuMTEsNS44NywxMy4xMSwxMy4xMWwuMDIsNTEuMzVaIi8+PHBhdGggZD0iTTI3OS40NywxMTEuNFYxLjY3czI5LjAyLDAsMjkuMDIsMGM3LjI0LDAsMTMuMTEsNS44NywxMy4xMSwxMy4xMXY2NC4yNGg0Mi4xNXYxOS4yOGMwLDcuMjQtNS44NiwxMy4xLTEzLjEsMTMuMWgtNzEuMThaIi8+PC9zdmc+" alt="PLUS">
+      <span>Audiosysteem</span>
+    </div>
+    <div class="tabs">
+      <a href="volume.html" class=""><span class="mi">music_note</span>Muziek</a>
+      <a href="presets.html" class="active"><span class="mi">queue_music</span>Presets</a>
+      <a href="tts.html" class=""><span class="mi">record_voice_over</span>Text to Speech</a>
+      
+      <a href="beheer.html" class=""><span class="mi">settings</span>Beheer</a>
+      <a href="gebruikers.html" class=""><span class="mi">group</span>Gebruikers</a>
+      <a href="oidc.html" class=""><span class="mi">key</span>OIDC</a>
+      <a href="logs.html" class=""><span class="mi">receipt_long</span>Logs</a>
+      
+    </div>
+    <div class="topright">
+      
+        <span class="pill pill-user" onclick="openUserMenu()" style="cursor:pointer" title="Mijn profiel">Beheerder (demo)</span>
+        <a class="pill" href="login.html">Uitloggen</a>
+      
+    </div>
+    <div class="hamburger" id="hambBtn" onclick="toggleNav()">
+      <span></span><span></span><span></span>
+    </div>
+  </div>
+  <div class="nav-drawer" id="navDrawer">
+    <a href="volume.html" class=""><span class="mi">music_note</span> Muziek</a>
+    <a href="presets.html" class="active"><span class="mi">queue_music</span> Presets</a>
+    <a href="tts.html" class=""><span class="mi">record_voice_over</span> Text to Speech</a>
+    
+    <a href="beheer.html" class=""><span class="mi">settings</span> Beheer</a>
+    <a href="gebruikers.html" class=""><span class="mi">group</span> Gebruikers</a>
+    <a href="oidc.html" class=""><span class="mi">key</span> OIDC</a>
+    <a href="logs.html" class=""><span class="mi">receipt_long</span> Logs</a>
+    
+    
+    <a href="#"><span class="mi">account_circle</span> Mijn profiel</a>
+    <a href="login.html" style="border-color:#f1b7b0;color:#c62828"><span class="mi">logout</span> Uitloggen (Beheerder (demo))</a>
+    
+  </div>
+  <div class="card-body">
+    
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet">
+<style>
+#editToggleBtn.active{background:var(--red);border-color:var(--red-dark);color:#fff}
+/* Potlood-knop op tegel (alleen zichtbaar in bewerkmodus) → eigen bewerkpagina */
+.card-item{position:relative}
+.tile-edit-btn{position:absolute;top:8px;right:8px;width:40px;height:40px;display:none;align-items:center;justify-content:center;border-radius:50%;border:1px solid var(--stroke);background:#fff;color:var(--green-dark);text-decoration:none;box-shadow:var(--shadow-sm);z-index:2}
+.tile-edit-btn:hover{background:#eaf4d8}
+.tile-edit-btn .mi{font-size:20px;margin:0;vertical-align:-4px}
+.edit-mode .tile-edit-btn{display:flex}
+.new-preset-card{display:none!important}
+.edit-mode .new-preset-card{display:block!important}
+/* 'Nu aan het afspelen'-popup */
+.np-backdrop{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(17,40,20,.60);z-index:10000;padding:20px}
+.np-backdrop.show{display:flex}
+.np-card{width:min(440px,94vw);background:#fff;border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.35);padding:28px 24px;text-align:center;border-top:6px solid var(--red)}
+.np-label{font-size:13px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--fg3);margin-bottom:12px}
+.np-icon .material-symbols-outlined{font-size:76px;color:var(--red)}
+.np-name{font-size:24px;font-weight:800;color:var(--green-dark);margin:6px 0 22px;word-break:break-word;line-height:1.2}
+.np-stop{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;min-height:66px;font-size:20px;font-weight:800;background:#c62828;color:#fff;border:none;border-radius:24px 24px 24px 4px;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.np-stop:active{background:#a51f1f}
+.np-stop .mi{font-size:28px;vertical-align:-7px}
+.np-hint{margin-top:14px;font-size:13px;color:var(--fg3)}
+</style>
+<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:18px">
+  <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+    <h1 style="margin:0">Presets</h1>
+    <button class="btn btn-stop btn-inline btn-sm" onclick="stopPlayback()" style="width:auto"><span class="mi">stop_circle</span> Stop preset</button>
+  </div>
+  
+  <button id="editToggleBtn" class="btn btn-inline btn-sm"
+          onclick="toggleEdit()" style="width:auto;gap:6px">
+    <span class="mi">edit</span> Bewerken
+  </button>
+  
+</div>
+<div class="card-grid" id="presetGrid"><div class="card-item new-preset-card">
+          <div class="label" style="font-weight:700;margin-bottom:10px"><span class="mi">add</span> Nieuwe preset</div>
+          <form method="post" action="#" enctype="multipart/form-data">
+            <div class="label">Naam</div><input class="input" name="name" placeholder="Naam" style="margin-bottom:6px">
+            <div class="label">Bestand</div><input class="input" type="file" name="file" accept=".wav,.mp3,.m4a" required style="margin-bottom:8px">
+            <button class="btn" type="submit"><span class="mi">add</span> Toevoegen</button>
+          </form></div><div class="card-item" style="text-align:center">
+              <a class="tile-edit-btn" href="#" onclick="event.stopPropagation()" title="Preset bewerken"><span class="mi">edit</span></a><div class="label" style="text-align:left">Preset 2</div>
+              <div style="font-weight:700;margin-bottom:10px;text-align:left">Personeelsoproep – Slijterij</div>
+              <button class="btn btn-primary" onclick="playPreset(2)"><span class="mi">play_arrow</span> Afspelen</button>
+            </div><div class="card-item" style="text-align:center">
+              <a class="tile-edit-btn" href="#" onclick="event.stopPropagation()" title="Preset bewerken"><span class="mi">edit</span></a><div class="label" style="text-align:left">Preset 3</div>
+              <div style="font-weight:700;margin-bottom:10px;text-align:left">Personeelsoproep – Emballage</div>
+              <button class="btn btn-primary" onclick="playPreset(3)"><span class="mi">play_arrow</span> Afspelen</button>
+            </div><div class="card-item" style="text-align:center">
+              <a class="tile-edit-btn" href="#" onclick="event.stopPropagation()" title="Preset bewerken"><span class="mi">edit</span></a><div class="label" style="text-align:left">Preset 4</div>
+              <div style="font-weight:700;margin-bottom:10px;text-align:left">Personeelsoproep – Winkelwagens</div>
+              <button class="btn btn-primary" onclick="playPreset(4)"><span class="mi">play_arrow</span> Afspelen</button>
+            </div><div class="card-item" style="text-align:center">
+              <a class="tile-edit-btn" href="#" onclick="event.stopPropagation()" title="Preset bewerken"><span class="mi">edit</span></a><div class="label" style="text-align:left">Preset 5</div>
+              <div style="font-weight:700;margin-bottom:10px;text-align:left">Personeelsoproep – Kassa</div>
+              <button class="btn btn-primary" onclick="playPreset(5)"><span class="mi">play_arrow</span> Afspelen</button>
+            </div><div class="card-item" style="text-align:center">
+              <a class="tile-edit-btn" href="#" onclick="event.stopPropagation()" title="Preset bewerken"><span class="mi">edit</span></a><div class="label" style="text-align:left">Preset 6</div>
+              <div style="font-weight:700;margin-bottom:10px;text-align:left">Personeelsoproep – Broodafdeling</div>
+              <button class="btn btn-primary" onclick="playPreset(6)"><span class="mi">play_arrow</span> Afspelen</button>
+            </div></div>
+
+<!-- Icon picker modal -->
+<div id="iconPickerBackdrop" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.70);z-index:9998;align-items:center;justify-content:center;padding:20px">
+  <div style="width:min(700px,96vw);max-height:85vh;display:flex;flex-direction:column;background:#fff;border:1px solid var(--stroke);border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,.30);overflow:hidden">
+    <div style="padding:16px 20px;border-bottom:1px solid var(--stroke-light);display:flex;gap:10px;align-items:center">
+      <input id="iconSearch" class="input" placeholder="Zoek icon… (bijv. campaign, mic, warning)" style="flex:1"
+             oninput="filterIcons(this.value)">
+      <button class="btn btn-inline btn-sm" onclick="closeIconPicker()" style="width:auto;flex-shrink:0"><span class="mi">close</span> Sluiten</button>
+    </div>
+    <div id="iconGrid" style="overflow-y:auto;padding:16px;display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:8px"></div>
+  </div>
+</div>
+
+<div id="nowPlaying" class="np-backdrop">
+  <div class="np-card">
+    <div class="np-label">Nu aan het afspelen</div>
+    <div id="npIcon" class="np-icon"><span class="material-symbols-outlined">campaign</span></div>
+    <div id="npName" class="np-name">Preset</div>
+    <button class="np-stop" onclick="stopPlayback()"><span class="mi">stop_circle</span> Stop preset</button>
+    <div class="np-hint">Verkeerde gekozen? Tik op stop.</div>
+  </div>
+</div>
+
+<script>
+const PRESET_META = {"2": {"name": "Personeelsoproep – Slijterij", "icon": ""}, "3": {"name": "Personeelsoproep – Emballage", "icon": ""}, "4": {"name": "Personeelsoproep – Winkelwagens", "icon": ""}, "5": {"name": "Personeelsoproep – Kassa", "icon": ""}, "6": {"name": "Personeelsoproep – Broodafdeling", "icon": ""}};
+const SHOW_PLAYING_POPUP = false;
+let _npActive=false, _npHideTimer=null, _npEs=null, _npSeen=false, _npShownAt=0, _npPoll=null;
+const NP_MAX_WAIT_MS=8000;   // popup nooit langer laten staan als er nóóit geluid kwam
+
+function showNowPlaying(n){
+  const m=PRESET_META[n]||{name:'Preset '+n,icon:''};
+  document.getElementById('npName').textContent=m.name;
+  document.getElementById('npIcon').innerHTML='<span class="material-symbols-outlined">'+(m.icon||'campaign')+'</span>';
+  document.getElementById('nowPlaying').classList.add('show');
+  _npActive=true; _npSeen=false; _npShownAt=Date.now();
+  if(_npHideTimer){clearTimeout(_npHideTimer);_npHideTimer=null;}
+  npWatch();
+  // Vangnet: pol de status ook los van de SSE-stream, zodat een weggevallen
+  // stream de popup niet kan laten hangen na afloop van de preset.
+  if(_npPoll){clearInterval(_npPoll);}
+  _npPoll=setInterval(npPollStatus,1500);
+}
+function hideNowPlaying(){
+  _npActive=false;
+  if(_npHideTimer){clearTimeout(_npHideTimer);_npHideTimer=null;}
+  if(_npPoll){clearInterval(_npPoll);_npPoll=null;}
+  document.getElementById('nowPlaying').classList.remove('show');
+}
+function npApplyState(d){
+  if(!_npActive) return;
+  if(d && d.playing){
+    _npSeen=true;                                   // preset speelt écht
+    if(_npHideTimer){clearTimeout(_npHideTimer);_npHideTimer=null;}
+    return;
+  }
+  // Er speelt (even) niets. Pas verbergen nadat we geluid hebben gezien —
+  // presets bestaan uit preroll+preset+outro met korte gaten; 2s debounce
+  // voorkomt flikkeren tussen de segmenten door.
+  if(_npSeen){
+    if(!_npHideTimer){
+      _npHideTimer=setTimeout(function(){ if(_npActive) hideNowPlaying(); }, 2000);
+    }
+  } else if(Date.now()-_npShownAt > NP_MAX_WAIT_MS){
+    hideNowPlaying();                               // nooit geluid gedetecteerd → toch sluiten
+  }
+}
+function npPollStatus(){
+  if(!_npActive) return;
+  fetch("/api/status",{cache:'no-store'}).then(r=>r.json()).then(npApplyState).catch(()=>{});
+}
+function npWatch(){
+  if(_npEs) return;
+  _npEs=new EventSource("/events");
+  _npEs.onmessage=function(e){ try{ npApplyState(JSON.parse(e.data)); }catch(_){} };
+  _npEs.onerror=function(){ try{_npEs.close();}catch(_){} _npEs=null; if(_npActive) setTimeout(npWatch,1500); };
+}
+function playPreset(n){
+  fetch("/api/play_preset/0".replace('/0','/'+n),{method:'POST'}).catch(()=>{});
+  if(SHOW_PLAYING_POPUP) showNowPlaying(n);
+}
+function stopPlayback(){
+  fetch("/api/stop",{method:'POST'}).catch(()=>{});
+  hideNowPlaying();
+}
+window.addEventListener('load',()=>{if(typeof ensureLock==="function")ensureLock('presets');});
+
+// ── Bewerken toggle ──
+let _editMode = false;
+function toggleEdit(){
+  _editMode = !_editMode;
+  const grid = document.getElementById('presetGrid');
+  const btn  = document.getElementById('editToggleBtn');
+  if(_editMode){
+    grid.classList.add('edit-mode');
+    btn.classList.add('active');
+    btn.innerHTML = '<span class="mi">edit_off</span> Bewerken uit';
+    try{ localStorage.setItem('omroep_edit_mode','1'); }catch(_){}
+  } else {
+    grid.classList.remove('edit-mode');
+    btn.classList.remove('active');
+    btn.innerHTML = '<span class="mi">edit</span> Bewerken';
+    try{ localStorage.removeItem('omroep_edit_mode'); }catch(_){}
+  }
+}
+// Herstel vorige staat na pagina-reload
+window.addEventListener('load', function(){
+  try{ if(localStorage.getItem('omroep_edit_mode')==='1') toggleEdit(); }catch(_){}
+});
+
+// ── Icon picker ──
+const ICONS=[
+  "campaign","mic","volume_up","record_voice_over","speaker","queue_music","music_note","headphones",
+  "alarm","schedule","timer","event","today","calendar_month","notifications","notification_important",
+  "warning","error","info","help","priority_high","report","new_releases","flag",
+  "person","group","people","badge","supervisor_account","engineering","support_agent","manage_accounts",
+  "store","local_grocery_store","shopping_cart","shopping_basket","storefront","local_mall","point_of_sale",
+  "local_bar","liquor","wine_bar","sports_bar","local_cafe","coffee","bakery_dining","restaurant",
+  "recycling","delete","cleaning_services","build","handyman","construction","home_repair_service",
+  "directions_car","local_shipping","delivery_dining","two_wheeler","electric_car","agriculture",
+  "lock","lock_open","security","verified","shield","key","vpn_key","fingerprint",
+  "phone","phone_in_talk","call","contact_phone","headset_mic","support",
+  "bolt","power","electrical_services","outlet","settings","tune","device_hub",
+  "star","thumb_up","celebration","cake","favorite","emoji_events","workspace_premium",
+  "close","check","done","add","remove","search","refresh","sync","autorenew",
+  "arrow_forward","arrow_back","arrow_upward","arrow_downward","open_in_new","link",
+  "bread","local_pizza","fastfood","lunch_dining","dinner_dining","brunch_dining",
+  "freezing","thermostat","ac_unit","water_drop","opacity","light_mode","dark_mode",
+  "monetization_on","euro","attach_money","payments","receipt","savings","account_balance",
+  "inventory","inventory_2","warehouse","shelves","category","label","sell","price_tag",
+  "trolley","forklift","pallet","conveyor_belt","factory","precision_manufacturing"
+];
+let _pickerPresetId = null;
+
+function openIconPicker(pid){
+  _pickerPresetId = pid;
+  document.getElementById('iconSearch').value='';
+  renderIconGrid(ICONS);
+  const bd=document.getElementById('iconPickerBackdrop');
+  bd.style.display='flex';
+  document.getElementById('iconSearch').focus();
+}
+function closeIconPicker(){
+  document.getElementById('iconPickerBackdrop').style.display='none';
+  _pickerPresetId=null;
+}
+function filterIcons(q){
+  q=(q||'').toLowerCase().trim();
+  renderIconGrid(q?ICONS.filter(ic=>ic.includes(q)):ICONS);
+}
+function renderIconGrid(list){
+  const g=document.getElementById('iconGrid');
+  g.innerHTML='';
+  list.forEach(ic=>{
+    const d=document.createElement('div');
+    d.style.cssText='display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 6px;border-radius:10px;border:1px solid var(--stroke-light);background:#f4f6f1;cursor:pointer;transition:background .12s';
+    d.onmouseenter=()=>d.style.background='#eaf4d8';
+    d.onmouseleave=()=>d.style.background='#f4f6f1';
+    d.innerHTML='<span class="material-symbols-outlined" style="font-size:30px;color:#80bd1d">'+ic+'</span>'
+      +'<span style="font-size:10px;color:var(--fg3);text-align:center;word-break:break-all;line-height:1.2">'+ic+'</span>';
+    d.onclick=()=>selectIcon(ic);
+    g.appendChild(d);
+  });
+  if(!list.length){g.innerHTML='<div style="color:var(--fg3);grid-column:1/-1;text-align:center;padding:30px">Geen resultaten</div>';}
+}
+function selectIcon(ic){
+  if(_pickerPresetId===null)return;
+  const inp=document.getElementById('icon_input_'+_pickerPresetId);
+  const prv=document.getElementById('icon_preview_'+_pickerPresetId);
+  const hid=document.getElementById('icon_hidden_'+_pickerPresetId);
+  if(inp)inp.value=ic;
+  if(prv)prv.textContent=ic;
+  if(hid)hid.value=ic;
+  closeIconPicker();
+}
+document.getElementById('iconPickerBackdrop').addEventListener('click',function(e){
+  if(e.target===this)closeIconPicker();
+});
+document.addEventListener('keydown',function(e){
+  if(e.key==='Escape')closeIconPicker();
+});
+</script>
+  </div>
+  <div class="footer"><a href="#" class="ver-link" onclick="openChangelog();return false" title="Bekijk de changelog">v7.8.2</a> &middot; Beheerder (demo) &middot; PLUS Demo Audiosysteem</div>
+</div></div>
+
+<div id="mb" class="modal-backdrop" onclick="mbBackdropClick(event)">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <h3 style="margin:0"><span class="mi">new_releases</span> Changelog</h3>
+      <button class="btn btn-inline btn-sm" onclick="closeModal()" style="width:auto;padding:6px 14px" aria-label="Sluiten"><span class="mi">close</span> Sluiten</button>
+    </div>
+    <div id="modalText" class="md-body"></div>
+  </div>
+</div>
+
+
+<div id="userMenu" class="modal-backdrop" onclick="if(event.target===this)closeUserMenu()">
+  <div class="modal" style="max-width:400px;text-align:center">
+    <div style="display:flex;flex-direction:column;align-items:center;gap:8px;margin-bottom:18px">
+      <div style="width:74px;height:74px;border-radius:50%;background:var(--red);color:#fff;display:flex;align-items:center;justify-content:center;font-size:32px;font-weight:800">B</div>
+      <div style="font-size:18px;font-weight:800;color:var(--green-dark)">Beheerder (demo)</div>
+      
+      <div><span class="rbadge rbadge-admin">admin</span> <span class="sbadge sbadge-local">local</span></div>
+    </div>
+    <a class="btn btn-primary" href="#" style="text-decoration:none"><span class="mi">manage_accounts</span> Profiel bekijken / bewerken</a>
+    <div style="height:8px"></div>
+    <a class="btn" href="login.html" style="text-decoration:none"><span class="mi">logout</span> Uitloggen</a>
+    <div style="margin-top:12px"><button class="btn btn-inline btn-sm" onclick="closeUserMenu()" style="width:auto"><span class="mi">close</span> Sluiten</button></div>
+  </div>
+</div>
+
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js" crossorigin="anonymous"></script>
+<script>
+const IS_ADMIN=true;
+const PRESETS_LOCK=false,PRESETS_SECS=30;
+const TTS_LOCK=false,TTS_SECS=30;
+
+function renderMarkdown(text){
+  if(typeof marked!=='undefined'){
+    marked.setOptions({breaks:true,gfm:true});
+    return marked.parse(text);
+  }
+  return '<pre style="white-space:pre-wrap">'+text.replace(/</g,'&lt;')+'</pre>';
+}
+// ── Confetti: subtiel & realistisch, bij de changelog-popup op een nieuwe versie.
+// Twee lichte golven die onder zwaartekracht vallen en fladderen; bij het sluiten
+// van de popup vallen ze versneld naar beneden en vagen ze weg. Respecteert
+// prefers-reduced-motion. Zelfstandig (canvas, geen library).
+var _confetti=(function(){
+  var canvas,ctx,pieces=[],raf=null,running=false,closing=false,W=0,H=0;
+  function ensure(){
+    if(canvas)return;
+    canvas=document.createElement('canvas');
+    canvas.style.cssText='position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:10000';
+    document.body.appendChild(canvas);ctx=canvas.getContext('2d');resize();
+    window.addEventListener('resize',resize);
+  }
+  function resize(){
+    if(!canvas)return;var dpr=Math.min(window.devicePixelRatio||1,2);
+    W=window.innerWidth;H=window.innerHeight;
+    canvas.width=W*dpr;canvas.height=H*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);
+  }
+  function palette(){
+    var cs=getComputedStyle(document.documentElement);
+    function v(n,f){var c=(cs.getPropertyValue(n)||'').trim();return c||f;}
+    return [v('--red','#80bd1d'),v('--gold','#227647'),v('--green-dark','#115013'),'#ffd34e','#ffffff','#ff7043'];
+  }
+  function spawn(n){
+    var cols=palette();
+    for(var i=0;i<n;i++){pieces.push({
+      x:Math.random()*W, y:-20-Math.random()*H*0.35,
+      vx:(Math.random()-0.5)*1.2, vy:1.2+Math.random()*1.8,
+      w:5+Math.random()*6, h:8+Math.random()*7,
+      rot:Math.random()*Math.PI*2, vrot:(Math.random()-0.5)*0.2,
+      wob:Math.random()*Math.PI*2, wobs:0.03+Math.random()*0.05,
+      color:cols[(Math.random()*cols.length)|0], opacity:1
+    });}
+  }
+  function step(){
+    ctx.clearRect(0,0,W,H);
+    for(var i=pieces.length-1;i>=0;i--){
+      var p=pieces[i];
+      p.wob+=p.wobs;
+      p.x+=p.vx+Math.sin(p.wob)*0.6;
+      p.vy+=closing?0.55:0.05;
+      if(!closing&&p.vy>3.0)p.vy=3.0;
+      p.y+=p.vy; p.rot+=p.vrot;
+      if(closing)p.opacity-=0.03;
+      if(p.y>H+30||p.opacity<=0){pieces.splice(i,1);continue;}
+      ctx.save();ctx.globalAlpha=Math.max(0,p.opacity);
+      ctx.translate(p.x,p.y);ctx.rotate(p.rot);ctx.fillStyle=p.color;
+      ctx.fillRect(-p.w/2,-p.h/2,p.w,p.h*(0.55+0.45*Math.abs(Math.cos(p.wob))));
+      ctx.restore();
+    }
+    if(pieces.length){raf=requestAnimationFrame(step);}
+    else{running=false;if(raf){cancelAnimationFrame(raf);raf=null;}if(ctx)ctx.clearRect(0,0,W,H);}
+  }
+  return {
+    start:function(){
+      if(window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+      ensure();closing=false;spawn(90);
+      setTimeout(function(){if(running&&!closing)spawn(40);},350);
+      if(!running){running=true;step();}
+    },
+    close:function(){closing=true;}
+  };
+})();
+function closeModal(){document.getElementById('mb').style.display='none'; if(window._confetti)_confetti.close();}
+function mbBackdropClick(e){if(e.target===document.getElementById('mb')) closeModal();}
+function openUserMenu(){var m=document.getElementById('userMenu');if(m)m.style.display='flex';}
+function closeUserMenu(){var m=document.getElementById('userMenu');if(m)m.style.display='none';}
+document.addEventListener('keydown',function(e){if(e.key==='Escape') closeModal();});
+
+function deadlineKey(s){return"omroep_kiosk_v3_"+s;}
+function nowSec(){return Math.floor(Date.now()/1000);}
+function getDeadline(s){try{return parseInt(localStorage.getItem(deadlineKey(s))||"0",10);}catch(_){return 0;}}
+function setDeadline(s,ts){try{localStorage.setItem(deadlineKey(s),String(ts));}catch(_){}}
+function clearDeadline(s){try{localStorage.removeItem(deadlineKey(s));}catch(_){}}
+function ensureLock(section){
+  if(IS_ADMIN){clearDeadline(section);return;}
+  const enabled=(section==="presets")?PRESETS_LOCK:TTS_LOCK;
+  const secs=(section==="presets")?PRESETS_SECS:TTS_SECS;
+  if(!enabled)return;
+  let dl=getDeadline(section);
+  if(!dl){setDeadline(section,nowSec()+secs);dl=getDeadline(section);}
+  const url=section==="presets"?"/locked":"/locked_tts";
+  const tick=()=>{const d=getDeadline(section);if(d&&nowSec()>=d)window.location.replace(url);};
+  tick();setInterval(tick,1000);
+  ["click","touchstart","mousemove","keydown"].forEach(ev=>window.addEventListener(ev,()=>{if(!IS_ADMIN)setDeadline(section,nowSec()+secs);},{passive:true}));
+}
+function toggleNav(){
+  const btn=document.getElementById('hambBtn');
+  const drawer=document.getElementById('navDrawer');
+  if(btn&&drawer){btn.classList.toggle('open');drawer.classList.toggle('open');}
+}
+function maybeShowAnnouncement(){
+  fetch("/api/settings",{cache:'no-store'}).then(r=>r.json()).then(s=>{
+    if(!s.announcement_enabled||!s.announcement_text)return;
+    // Aan de VERSIE gekoppeld: elke nieuwe versie (fix/update) toont de changelog
+    // opnieuw mét confetti. (Voorheen aan announcement_id, dat bleef gelijk.)
+    const key='omroep_ann_seen_'+(s.version||s.announcement_id||1);
+    try{if(localStorage.getItem(key))return;} catch(_){}
+    document.getElementById('modalText').innerHTML=renderMarkdown(s.announcement_text);
+    document.getElementById('mb').style.display='flex';
+    try{localStorage.setItem(key,'1');}catch(_){}
+    if(window._confetti)_confetti.start();   // nieuwe versie → subtiele confetti
+  }).catch(()=>{});
+}
+function openChangelog(){
+  fetch("/api/settings",{cache:'no-store'}).then(r=>r.json()).then(s=>{
+    var txt=s.announcement_text||'_Nog geen changelog beschikbaar._';
+    document.getElementById('modalText').innerHTML=renderMarkdown(txt);
+    document.getElementById('mb').style.display='flex';
+  }).catch(()=>{});
+}
+window.addEventListener('load',maybeShowAnnouncement);
+
+// ── Inactiviteit → terug naar de Muziek-pagina (per gebruiker aan/uit) ──
+// Reset bij elke interactie, dus tijdens gebruik gebeurt er niets. Alleen actief
+// als de gebruiker het aan heeft én we niet al op de Muziek-pagina zijn.
+(function(){
+  var ON=false;
+  var SECS=60;
+  var ONMUSIC=false;
+  if(!ON || ONMUSIC || SECS<10) return;
+  var url="/volume";
+  var t=null, last=0;
+  function reset(){
+    var now=Date.now();
+    if(now-last<400) return;      // lichte throttle voor mousemove
+    last=now;
+    if(t) clearTimeout(t);
+    t=setTimeout(function(){ window.location.href=url; }, SECS*1000);
+  }
+  ['click','touchstart','pointerdown','keydown','scroll','mousemove'].forEach(function(ev){
+    window.addEventListener(ev, reset, {passive:true});
+  });
+  reset();
+})();
+</script>

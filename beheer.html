@@ -1,0 +1,1743 @@
+<script src="mock.js"></script>
+
+<title>PLUS Audiosysteem</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" type="image/png" href="static/icon.png">
+<link rel="apple-touch-icon" href="static/icon.png">
+<link rel="shortcut icon" href="static/icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&family=DM+Mono:wght@400;500&family=Montserrat:wght@700;800;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet">
+<style>
+/* "PLUS Radio"-merk-lockup: het volledige PLUS-logo + RADIO in Montserrat.
+   Beide erven currentColor → wit op groene tabs, groen/donker op witte vlakken. */
+.pr-lockup{display:inline-flex;align-items:center;gap:.42em;white-space:nowrap;vertical-align:-2px}
+.pr-lockup svg{height:.8em;width:auto;display:block}
+.pr-radio{font-family:'Montserrat','Segoe UI',system-ui,sans-serif;font-weight:800;letter-spacing:.14em;font-size:.82em;line-height:1}
+/* ──────────────────────────────────────────────────────────────
+   PLUS huisstijl (licht) — gedestilleerd uit de plus.nl styleguide.
+   Zelfde class-namen als voorheen, zodat alle pagina's op exact
+   dezelfde plek/structuur blijven; alleen de visuele stijl verandert
+   van donker-glas naar de lichte PLUS-look.
+   Kleuren: Action Green #80bd1d (CTA), Dark Green #115013 (tekst/koppen),
+   wit vlak, neutrale grijzen (#333/#6c6c6c/#d8d8d8).
+   ────────────────────────────────────────────────────────────── */
+:root{
+  /* --red* = de primaire actie/CTA-kleur (Action Green). Naam behouden
+     voor compatibiliteit met bestaande inline-verwijzingen. */
+  --red:#80bd1d;--red-dark:#6aa018;--red-glow:rgba(128,189,29,0.30);
+  /* --gold* = merk-accent; op wit vertaald naar PLUS-bosgroen. */
+  --gold:#227647;--gold-dim:rgba(34,118,71,0.12);
+  --green-dark:#115013;              /* koppen, links, primaire tekst-acties */
+  --bg-page:#eef1ea;                 /* paginascherm achter de kaart */
+  --bg-card:#ffffff;
+  --bg-card-hover:#f5f7f2;
+  --bg-soft:#f4f6f1;                 /* subtiele sub-panelen (was rgba zwart) */
+  --stroke:#d8d8d8;
+  --stroke-light:#e7e9e3;
+  --stroke-dark:#c4c8bd;
+  --fg:#333333;--fg2:#4a4a4a;--fg3:#6c6c6c;
+  --btn:#ffffff;--btnh:#f0f2ec;
+  --danger:#fdeceb;--dangerborder:#f1b7b0;--dangertext:#c62828;
+  --radius:8px;--radius-sm:8px;
+  --btn-radius:24px 24px 24px 4px;   /* kenmerkende PLUS "spraakwolk"-knop */
+  --on-primary:#ffffff;              /* tekst/iconen op de gekleurde topbar (thema-afhankelijk) */
+  --accent-soft:#eaf4d8;             /* zachte merk-tint (o.a. geselecteerde chip) */
+  --shadow:0 1px 3px rgba(0,0,0,.20),0 1px 1px rgba(0,0,0,.14),0 2px 1px -1px rgba(0,0,0,.12);
+  --shadow-sm:0 1px 3px rgba(0,0,0,.12);
+  --font:"Open Sans","Gotham",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+  --serif:"Open Sans","Gotham",system-ui,sans-serif;
+  --mono:"DM Mono",ui-monospace,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+/* Touch: verwijder tap-delay + grijze tap-flash; app draait 90% op telefoon/tablet. */
+a,button,.btn,.tab,.tabs a,.pill,.k,.preset-tile-icon,input,select,textarea,label,[onclick]{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+html{-webkit-text-size-adjust:100%}
+html,body{height:100%;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+body{
+  font-family:var(--font);color:var(--fg);font-size:15px;line-height:1.55;
+  background-color:var(--bg-page);
+  min-height:100vh;
+}
+.wrap{min-height:100vh;display:flex;align-items:flex-start;justify-content:center;padding:clamp(10px,3vw,40px)}
+.card{width:min(1060px,96vw);background:var(--bg-card);border:1px solid var(--stroke);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
+.card-body{padding:clamp(16px,2.8vw,32px)}
+/* Kopbalk in Action Green met witte tekst — de PLUS header-look. */
+.topbar{
+  display:flex;align-items:center;gap:10px;justify-content:space-between;
+  padding:0 clamp(14px,2.8vw,30px);
+  background:var(--red);
+  box-shadow:2px 1px 6px 0 rgba(51,51,51,.20);
+  min-height:56px;
+}
+.topbar-logo{display:flex;align-items:center;gap:13px;white-space:nowrap;padding:10px 0;flex-shrink:0}
+.topbar-logo img{height:28px;width:auto;display:block}
+/* "Omroepsysteem" als lockup naast het PLUS-woordmerk: scheidingslijn +
+   hoofdletters met letterspatiëring, wit — sluit aan bij het logo als één geheel. */
+.topbar-logo span{
+  color:var(--on-primary);font-weight:800;font-size:12.5px;letter-spacing:.15em;text-transform:uppercase;
+  font-family:'Montserrat','Segoe UI',system-ui,sans-serif;line-height:1;
+  padding-left:13px;border-left:1.5px solid rgba(255,255,255,.45);
+}
+.tabs{display:flex;gap:4px;flex-wrap:wrap;padding:8px 0}
+.tabs a{
+  display:inline-block;padding:7px 15px;border-radius:999px;
+  border:1px solid transparent;background:transparent;
+  text-decoration:none;color:var(--on-primary);font-weight:600;font-size:13px;
+  transition:background .15s,color .15s;
+}
+.tabs a:hover{background:rgba(255,255,255,.18)}
+.tabs a.active{background:#fff;border-color:#fff;color:var(--green-dark);box-shadow:0 2px 6px rgba(0,0,0,.15)}
+.topright{display:flex;gap:8px;align-items:center;flex-wrap:wrap;flex-shrink:0}
+.pill{
+  padding:6px 14px;border-radius:999px;
+  border:1px solid rgba(255,255,255,.55);background:rgba(255,255,255,.12);
+  text-decoration:none;color:var(--on-primary);font-size:13px;font-weight:600;
+  white-space:nowrap;transition:background .15s;
+}
+.pill:hover{background:rgba(255,255,255,.25)}
+.pill-user{background:#fff;border-color:#fff;color:var(--green-dark)}
+h1{font-family:var(--serif);font-size:clamp(21px,2.6vw,26px);font-weight:800;margin-bottom:18px;color:var(--green-dark);line-height:1.2}
+h1 .gold{color:var(--red-dark)}
+h2{font-family:var(--serif);font-size:19px;font-weight:700;margin:20px 0 12px;color:var(--green-dark)}
+h3{font-size:15px;font-weight:700;margin:16px 0 10px;color:var(--fg)}
+.row{display:flex;flex-wrap:wrap;gap:16px}
+.col{flex:1 1 300px}
+.label{font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;margin-bottom:6px;color:var(--fg3)}
+hr{border:0;border-top:1px solid var(--stroke-light);margin:18px 0}
+.help{font-size:13px;color:var(--fg3);line-height:1.5}
+.mono{font-family:var(--mono)}
+/* Inline Material Symbol-icoon (vervangt emoji's in knoppen/tabs/koppen). */
+.material-symbols-outlined{font-variation-settings:'opsz' 24,'wght' 500,'GRAD' 0,'FILL' 0}
+.mi{font-family:'Material Symbols Outlined';font-weight:normal;font-style:normal;font-size:18px;line-height:1;letter-spacing:normal;text-transform:none;display:inline-block;white-space:nowrap;word-wrap:normal;direction:ltr;vertical-align:-4px;-webkit-font-feature-settings:'liga';font-feature-settings:'liga';-webkit-font-smoothing:antialiased}
+.mi-sm{font-size:16px;vertical-align:-3px}
+.btn .mi{margin-right:2px}
+.tabs a .mi,.nav-drawer a .mi,.pill .mi{font-size:18px;vertical-align:-4px;margin-right:3px}
+/* Touch-vriendelijke checkbox-rij (grotere hitbox, PLUS-groen vinkje). */
+.switch-row{display:flex;align-items:center;gap:10px;font-size:15px;color:var(--fg2);cursor:pointer;padding:6px 0;min-height:44px}
+.switch-row input[type=checkbox]{width:22px;height:22px;flex-shrink:0;accent-color:var(--red);cursor:pointer}
+/* Pill-selectie (stemmen, presets, weergave) — licht thema, touch-vriendelijk. */
+.chip{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--stroke);background:#fff;padding:9px 14px;border-radius:999px;font-size:14px;cursor:pointer;color:var(--fg2);min-height:44px}
+.chip input{accent-color:var(--red);width:18px;height:18px;flex-shrink:0}
+.chip:has(input:checked){border-color:var(--red);background:var(--accent-soft);color:var(--green-dark);font-weight:600}
+.chip-wrap{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+.radio-card{display:flex;align-items:center;gap:10px;border:1px solid var(--stroke);background:#fff;padding:12px 16px;border-radius:12px;cursor:pointer;font-size:15px;color:var(--fg2);min-height:52px;flex:1 1 200px}
+.radio-card input{accent-color:var(--red);width:20px;height:20px;flex-shrink:0}
+.radio-card:has(input:checked){border-color:var(--red);background:#eaf4d8;color:var(--green-dark);font-weight:600}
+/* Sectiekaart voor formulieren (gebruiker bewerken e.d.) */
+.form-card{border:1px solid var(--stroke);border-radius:var(--radius-sm);background:#fff;box-shadow:var(--shadow-sm);padding:18px;margin-bottom:16px}
+.form-card h3{margin-top:0;color:var(--green-dark)}
+.form-card.dimmed{opacity:.55}
+.form-card.dimmed input,.form-card.dimmed .chip,.form-card.dimmed label{pointer-events:none}
+/* Herbruikbare sub-tabs (gebruiker bewerken e.d.) */
+.subtabs{display:flex;gap:6px;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:6px;margin-bottom:18px;border-bottom:1px solid var(--stroke-light)}
+.subtab{display:inline-flex;align-items:center;gap:7px;white-space:nowrap;padding:10px 16px;border:1px solid var(--stroke);background:#fff;border-radius:24px 24px 24px 4px;color:var(--fg2);font-weight:600;font-size:14px;cursor:pointer;min-height:44px;flex-shrink:0}
+.subtab .mi{font-size:18px;vertical-align:-4px}
+.subtab:hover{background:var(--btnh)}
+.subtab.active{background:var(--red);border-color:var(--red);color:#fff}
+.subpanel{display:none}
+.subpanel.active{display:block}
+.input,textarea,select{
+  width:100%;padding:12px 14px;border-radius:var(--radius-sm);
+  border:1px solid var(--stroke);background:#fff;
+  font:inherit;color:var(--fg);transition:border-color .15s,box-shadow .15s;
+}
+.input::placeholder,textarea::placeholder{color:#999}
+.input:focus,textarea:focus,select:focus{outline:none;border-color:var(--green-dark);box-shadow:0 0 0 2px rgba(17,80,19,.12)}
+select option{background:#fff;color:var(--fg)}
+textarea{min-height:120px;resize:vertical}
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:7px;
+  padding:12px 18px;border-radius:var(--btn-radius);
+  border:1px solid var(--green-dark);background:#fff;
+  font:inherit;font-weight:700;font-size:14px;cursor:pointer;
+  color:var(--green-dark);text-decoration:none;
+  transition:background .18s,color .18s,box-shadow .18s;width:100%;
+}
+.btn:hover{background:var(--btnh)}
+.btn-primary{background:var(--red);border-color:var(--red);color:#fff;box-shadow:0 6px 16px var(--red-glow)}
+.btn-primary:hover{background:var(--red-dark)!important;border-color:var(--red-dark)}
+.btn-stop{background:var(--danger);border-color:var(--dangerborder);color:var(--dangertext)}
+.btn-stop:hover{background:#fbdcd8!important}
+.btn-danger{background:var(--danger);border-color:var(--dangerborder);color:var(--dangertext)}
+.btn-danger:hover{background:#fbdcd8!important}
+.btn-sm{padding:8px 13px;font-size:13px;border-radius:16px 16px 16px 4px}
+.btn-inline{width:auto}
+.btn-gold{background:#fff;border-color:var(--gold);color:var(--gold)}
+.btn-gold:hover{background:var(--gold-dim)!important}
+.range{-webkit-appearance:none;appearance:none;width:100%;height:14px;background:#e4e7df;border-radius:999px;border:1px solid var(--stroke)}
+.range::-webkit-slider-thumb{-webkit-appearance:none;width:26px;height:26px;border-radius:50%;background:var(--red);border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.25)}
+.range::-moz-range-thumb{width:24px;height:24px;border-radius:50%;background:var(--red);border:2px solid #fff}
+.badge{display:inline-block;padding:5px 12px;border-radius:999px;border:1px solid var(--stroke);background:#f4f6f1;font-weight:700;font-size:14px;color:var(--fg)}
+.table{width:100%;border-collapse:collapse;background:#fff;border:1px solid var(--stroke);border-radius:var(--radius-sm);overflow:hidden}
+.table th,.table td{padding:10px 13px;border-bottom:1px solid var(--stroke-light);text-align:left;font-size:14px;color:var(--fg2)}
+.table th{background:#f4f6f1;font-weight:700;color:var(--green-dark);text-transform:uppercase;font-size:11px;letter-spacing:.05em}
+.table tr:last-child td{border-bottom:none}
+.table tr:hover td{background:#f7f9f4}
+.card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px}
+.card-item{padding:16px;border-radius:var(--radius-sm);border:1px solid var(--stroke);background:#fff;box-shadow:var(--shadow-sm)}
+.preset-tile-icon{user-select:none;-webkit-tap-highlight-color:transparent}
+.preset-tile-icon:hover{background:#eaf4d8!important;transform:scale(1.03)}
+.preset-tile-icon:active{transform:scale(.97)}
+.rbadge{display:inline-block;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:700}
+.rbadge-admin{background:#fdeceb;color:#c62828;border:1px solid #f1b7b0}
+.rbadge-operator{background:var(--gold-dim);color:var(--gold);border:1px solid rgba(34,118,71,.35)}
+.rbadge-user{background:#eaf4d8;color:#4b7a12;border:1px solid #cbe3a0}
+.rbadge-custom{background:#efe9f7;color:#554DA7;border:1px solid #cdc2e8}
+.sbadge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700}
+.sbadge-local{background:var(--gold-dim);color:var(--gold)}
+.sbadge-sso{background:#efe9f7;color:#554DA7}
+.days{display:flex;flex-wrap:wrap;gap:8px}
+.days label{display:flex;align-items:center;gap:7px;border:1px solid var(--stroke);background:#fff;padding:7px 12px;border-radius:999px;font-size:14px;cursor:pointer;color:var(--fg2)}
+.pad{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;max-width:360px;margin:auto}
+.pad .k{padding:16px;border-radius:12px;border:1px solid var(--stroke);background:#fff;font-weight:800;font-size:20px;cursor:pointer;text-align:center;transition:background .12s,transform .1s;user-select:none;color:var(--green-dark);box-shadow:var(--shadow-sm)}
+.pad .k:hover{background:var(--btnh);transform:scale(1.04)}
+.codewin{letter-spacing:12px;font-size:26px;background:#fff;border:1px solid var(--stroke);border-radius:8px;padding:13px;text-align:center;font-weight:800;user-select:none;color:var(--green-dark)}
+.modal-backdrop{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(17,40,20,.55);z-index:9999;padding:20px}
+.modal{width:min(760px,94vw);max-height:82vh;overflow-y:auto;background:#fff;color:var(--fg);border:1px solid var(--stroke);border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,.30);padding:22px 24px}
+.modal .mactions{display:flex;justify-content:flex-end;margin-top:12px}
+.md-body{font-size:15px;line-height:1.7;color:var(--fg2)}
+.md-body h1,.md-body h2{font-family:var(--serif);color:var(--green-dark);margin:16px 0 8px}
+.md-body h1{font-size:22px}.md-body h2{font-size:18px}
+.md-body h3{font-size:15px;font-weight:700;color:var(--fg);margin:12px 0 6px}
+.md-body p{margin:0 0 10px}
+.md-body ul,.md-body ol{padding-left:20px;margin:0 0 10px}
+.md-body li{margin-bottom:4px}
+.md-body strong{color:var(--green-dark);font-weight:700}
+.md-body em{color:var(--gold);font-style:italic}
+.md-body code{font-family:var(--mono);font-size:13px;background:#f0f2ec;padding:2px 6px;border-radius:5px;color:var(--gold)}
+.md-body pre{background:#f4f6f1;border:1px solid var(--stroke);border-radius:8px;padding:12px;overflow-x:auto;margin:0 0 12px}
+.md-body pre code{background:none;padding:0;color:var(--fg2)}
+.md-body blockquote{border-left:3px solid var(--red);margin:0 0 10px;padding:6px 14px;background:#f4f6f1;border-radius:0 8px 8px 0;color:var(--fg2)}
+.md-body a{color:var(--green-dark);text-decoration:underline}
+.md-body hr{border:0;border-top:1px solid var(--stroke-light);margin:14px 0}
+.md-body table{width:100%;border-collapse:collapse;margin-bottom:12px;font-size:14px}
+.md-body table th,.md-body table td{padding:7px 10px;border:1px solid var(--stroke-light);text-align:left}
+.md-body table th{background:#f4f6f1;font-weight:700;color:var(--green-dark)}
+.alert{padding:11px 15px;border-radius:var(--radius-sm);margin-bottom:14px;font-size:14px;font-weight:600;border:1px solid}
+.alert-ok{background:#eaf4d8;border-color:#cbe3a0;color:#3d6a12}
+.alert-err{background:var(--danger);border-color:var(--dangerborder);color:var(--dangertext)}
+.alert-warn{background:#fff6e0;border-color:#f2d98a;color:#8a6d00}
+.footer{
+  padding:10px clamp(14px,2.8vw,30px);border-top:1px solid var(--stroke-light);
+  font-size:12px;color:var(--fg3);background:#f7f9f4;
+  display:flex;align-items:center;gap:8px;
+}
+.footer::before{content:'';display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--red);flex-shrink:0}
+.ver-link{color:var(--fg3);text-decoration:underline dotted;text-underline-offset:2px;cursor:pointer;transition:color .15s}
+.ver-link:hover{color:var(--green-dark)}
+.login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+.login-card{
+  width:min(420px,96vw);
+  background:#fff;
+  border:1px solid var(--stroke);border-radius:var(--radius);box-shadow:0 10px 40px rgba(0,0,0,.18);
+  padding:clamp(28px,5vw,44px);
+  border-top:4px solid var(--red);
+}
+.login-logo{font-family:var(--serif);font-size:26px;font-weight:800;color:var(--green-dark);margin-bottom:4px}
+.login-logo span{color:var(--red-dark)}
+.login-sub{font-size:13px;color:var(--fg3);margin-bottom:28px;font-style:italic}
+.divider{display:flex;align-items:center;gap:10px;margin:20px 0;font-size:13px;color:var(--fg3)}
+.divider::before,.divider::after{content:'';flex:1;border-top:1px solid var(--stroke-light)}
+.oidc-btn{
+  display:flex;align-items:center;justify-content:center;gap:8px;width:100%;
+  padding:11px 16px;border-radius:var(--radius-sm);
+  border:1px solid var(--stroke);background:#fff;
+  font:inherit;font-weight:600;font-size:14px;cursor:pointer;text-decoration:none;
+  color:var(--green-dark);transition:background .15s;
+}
+.oidc-btn:hover{background:var(--btnh)}
+.section-label{
+  font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--gold);margin-bottom:8px;display:block;
+}
+.table-wrap{width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:var(--radius-sm)}
+.lcbadge{display:inline-block;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:700;font-family:var(--mono);white-space:nowrap}
+.lc-login   {background:var(--gold-dim);color:var(--gold)}
+.lc-logout  {background:#eceee8;color:var(--fg3)}
+.lc-preset  {background:#eaf4d8;color:#4b7a12}
+.lc-tts     {background:#e4edff;color:#2a5bd7}
+.lc-admin   {background:#fdeceb;color:#c62828}
+.lc-sso     {background:#efe9f7;color:#554DA7}
+.lc-system  {background:#eceee8;color:var(--fg3)}
+.lc-schedule{background:#fff1d6;color:#a5730a}
+.lc-ha      {background:#d9f3f7;color:#0e7f92}
+.lc-rca     {background:#d9f5e4;color:#0e8a4a}
+.lc-3cx     {background:#ffe6cc;color:#b5620a}
+.lc-volume  {background:#e6e6ff;color:#4a4ad1}
+.hamburger{
+  display:none;flex-direction:column;gap:5px;cursor:pointer;
+  padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,.55);
+  background:rgba(255,255,255,.12);flex-shrink:0;
+}
+.hamburger span{display:block;width:20px;height:2px;background:#fff;border-radius:2px;transition:transform .2s,opacity .2s}
+.hamburger.open span:nth-child(1){transform:translateY(7px) rotate(45deg)}
+.hamburger.open span:nth-child(2){opacity:0}
+.hamburger.open span:nth-child(3){transform:translateY(-7px) rotate(-45deg)}
+.nav-drawer{
+  display:flex;flex-direction:column;gap:4px;
+  padding:0 clamp(14px,2.8vw,30px);
+  border-top:0 solid var(--stroke-light);
+  background:#f7f9f4;
+  max-height:0;opacity:0;overflow:hidden;
+  transition:max-height .3s cubic-bezier(.22,1,.36,1),opacity .22s ease,padding .3s ease;
+}
+.nav-drawer.open{max-height:70vh;opacity:1;padding:12px clamp(14px,2.8vw,30px);border-top-width:1px}
+.nav-drawer a{
+  display:block;padding:12px 14px;border-radius:var(--radius-sm);
+  border:1px solid var(--stroke);background:#fff;
+  text-decoration:none;color:var(--fg2);font-weight:600;font-size:15px;min-height:48px;
+  transition:background .15s,border-color .15s,transform .12s;
+}
+.nav-drawer a:active{transform:scale(.99)}
+.nav-drawer a.active{background:var(--red);border-color:var(--red);color:#fff}
+.log-filters{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;align-items:center}
+.log-filter-btn{
+  padding:5px 12px;border-radius:999px;border:1px solid var(--stroke);
+  background:#fff;color:var(--fg2);font-size:13px;font-weight:600;
+  cursor:pointer;transition:background .12s;
+}
+.log-filter-btn:hover,.log-filter-btn.on{background:var(--red);border-color:var(--red);color:#fff}
+/* Echt Spotify-logo in de logs (categorie-badge + filterknop); wit chipje zodat
+   het groene logo ook op de groene actieve knop zichtbaar blijft. */
+.lc-splogo{height:13px;width:auto;background:#fff;padding:2px 5px;border-radius:4px;vertical-align:-3px;display:inline-block;box-shadow:0 1px 2px rgba(0,0,0,.12)}
+.log-search{
+  flex:1;min-width:160px;padding:8px 12px;border-radius:999px;
+  border:1px solid var(--stroke);background:#fff;
+  color:var(--fg);font:inherit;font-size:13px;
+}
+.log-search::placeholder{color:#999}
+.log-search:focus{outline:none;border-color:var(--green-dark)}
+.tts-actions-panel{
+  border:1px solid #cbe3a0;
+  background:#f4f9ea;
+  border-radius:12px;
+  padding:16px;
+  margin-top:4px;
+}
+@media(max-width:720px){
+  .wrap{padding:0}
+  .card{border-radius:0;width:100%}
+  .card-body{padding:14px}
+  .card-grid{grid-template-columns:repeat(2,1fr);gap:12px}   /* 2 kolommen presets in portrait */
+  .col{flex:1 1 100%}
+  .topbar{flex-wrap:nowrap;min-height:56px;gap:8px}
+  .topbar-logo{font-size:15px;padding:10px 0;gap:9px}
+  .topbar-logo span{display:inline-block;font-size:10.5px;letter-spacing:.1em;padding-left:9px}
+  .tabs{display:none}
+  .topright{display:none}
+  .hamburger{display:flex;width:44px;height:44px;align-items:center;justify-content:center;gap:5px}
+  .table-wrap{width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:var(--radius-sm)}
+  .table{font-size:13px;min-width:480px}
+  .table th,.table td{padding:9px 10px}
+  .log-filters{gap:6px}
+  .log-filter-btn{font-size:13px;padding:7px 12px;min-height:38px}
+  .pad{max-width:100%}
+  /* Grotere tap-targets in portrait */
+  .btn{min-height:50px;font-size:15px}
+  .btn-sm{min-height:40px}
+  .input,textarea,select{font-size:16px;min-height:50px}   /* 16px voorkomt iOS-zoom bij focus */
+  .nav-drawer a{padding:14px 16px;font-size:16px;min-height:50px}
+  .days label{min-height:44px;padding:9px 14px}
+  .switch-row{min-height:50px;font-size:16px}
+  .range{height:22px}
+  .range::-webkit-slider-thumb{width:34px;height:34px}
+  .range::-moz-range-thumb{width:32px;height:32px}
+  h1{font-size:22px}
+}
+/* Heel smalle telefoons: presets weer 1 grote kolom mag ook — 2 is prima,
+   maar bij zeer kleine schermen iets meer ademruimte. */
+@media(max-width:360px){
+  .card-grid{gap:10px}
+}
+@media(min-width:721px){
+  .hamburger{display:none!important}
+  .nav-drawer{display:none!important}
+}
+/* Tablet / smal desktop: geen hamburger, maar de tabs passen niet op één regel
+   naast logo + gebruiker. Zet ze daarom netjes op een eigen, volledige tweede
+   rij (links uitgelijnd) i.p.v. verticaal gekneld in het midden. */
+@media(min-width:721px) and (max-width:1200px){
+  .topbar{flex-wrap:wrap;align-items:center;padding-top:0;padding-bottom:0}
+  .topbar-logo{order:1}
+  .topright{order:2}
+  .tabs{order:3;flex:1 1 100%;justify-content:flex-start;gap:6px;padding:0 0 10px}
+}
+/* ── App-brede, subtiele bewegingen (clean, niet over-the-top) ── */
+/* Bewust GEEN pagina-inlaad-animatie op de hoofdkaart: paginawissels moeten
+   (vrijwel) instant voelen. Alleen de losse inlogkaart mag zacht faden. */
+@keyframes page-in{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.plus-login,.login-card{animation:page-in .24s cubic-bezier(.22,1,.36,1) both}
+.btn,.pill,.tab,.tabs a,.subtab,.btab,.chip,.radio-card,.log-filter-btn,.tile-edit-btn{transition:background .16s ease,border-color .16s ease,color .16s ease,box-shadow .16s ease,transform .12s ease}
+.btn:active,.pill:active,.subtab:active,.btab:active,.log-filter-btn:active,.chip:active{transform:scale(.975)}
+.card-item{transition:box-shadow .18s ease,transform .12s ease,background .16s ease}
+.modal-backdrop,.np-backdrop,.ip-backdrop{transition:opacity .2s ease}
+a,button{-webkit-tap-highlight-color:transparent}
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important;scroll-behavior:auto!important}
+}
+</style>
+
+<style id="brandvars">:root{--red:#80bd1d;--red-dark:#6aa018;--red-glow:rgba(128,189,29,0.30);--gold:#227647;--gold-dim:rgba(34,118,71,0.12);--green-dark:#115013;--btn-radius:24px 24px 24px 4px;--on-primary:#ffffff;--accent-soft:#eaf4d8;}.chip:has(input:checked){background:#eaf4d8}.pr-lockup img{height:.9em;width:auto;display:block}</style>
+<div class="wrap"><div class="card">
+  <div class="topbar">
+    <div class="topbar-logo">
+      <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2MDkuMDkgMTEzLjUiIGZpbGw9IiNmZmZmZmYiPjxwYXRoIGQ9Ik01My4wMywyNi41NXYxNy42OGMwLDQuODgtMy45Niw4Ljg0LTguODQsOC44NGgtMTcuNjhDMTEuODcsNTMuMDYsMCw0MS4xOSwwLDI2LjU1UzExLjg3LjAzLDI2LjUyLjAzczI2LjUyLDExLjg3LDI2LjUyLDI2LjUyIi8+PHBhdGggZD0iTTUzLjAzLDg2Ljk1di0xNy42OGMwLTQuODgtMy45Ni04LjgzLTguODQtOC44M2gtMTcuNjhjLTE0LjY0LDAtMjYuNTIsMTEuODctMjYuNTIsMjYuNTFzMTEuODcsMjYuNTIsMjYuNTIsMjYuNTIsMjYuNTItMTEuODcsMjYuNTItMjYuNTIiLz48cGF0aCBkPSJNNjAuMzYsODYuOTZ2LTE3LjY4YzAtNC44OCwzLjk2LTguODQsOC44NC04Ljg0aDE3LjY4YzE0LjY0LDAsMjYuNTEsMTEuODcsMjYuNTEsMjYuNTFzLTExLjg3LDI2LjUyLTI2LjUxLDI2LjUyLTI2LjUyLTExLjg3LTI2LjUyLTI2LjUyIi8+PHBhdGggZD0iTTYwLjQxLDI2LjU1djE3LjY4YzAsNC44OCwzLjk2LDguODQsOC44NCw4Ljg0aDE3LjY4YzE0LjY1LDAsMjYuNTItMTEuODcsMjYuNTItMjYuNTFTMTAxLjU3LjAzLDg2LjkyLjAzcy0yNi41MSwxMS44Ny0yNi41MSwyNi41MiIvPjxwYXRoIGQ9Ik02MDIsMTVjMCw3LjI0LTUuODcsMTMuMTEtMTMuMSwxMy4xMS0uNzgsMC0xLjUzLS4wNy0yLjI4LS4xOS01LjQ0LS45Ni0xMS4xOS0xLjUtMTcuMTQtMS41LTYuNiwwLTE4LjA4LjE2LTE4LjA4LDcuMjMsMCwxNC4zLDU3LjY5Ljc5LDU3LjY5LDQzLjA3LDAsMjkuNC0yOS4wOCwzNi43OS01My40NSwzNi43OS0xMi4yOSwwLTIyLjk1LS45LTM0LjI1LTIuOTItNi4yNC0xLjAxLTExLjAzLTYuNDItMTEuMDMtMTIuOTV2LTE3Ljc2YzExLjMzLDQuNzIsMjUuMTYsNy4yMywzNy43Myw3LjIzLDkuOTEsMCwxOC44Ny0yLjA0LDE4Ljg3LTcuNTUsMC0xNC43OC01Ny42OS0xLjQxLTU3LjY5LTQ0LjAyLDAtMzAuMTgsMzEuNDQtMzUuNTIsNTYuNDQtMzUuNTIsMTEuNzksMCwyNC44NCwxLjQxLDM2LjMxLDMuNzd2MTEuMjNoLS4wMloiLz48cGF0aCBkPSJNMTQ4LjIyLDExMS40VjE0Ljc3YzAtNy4yNCw1Ljg3LTEzLjExLDEzLjExLTEzLjExaDU5LjM2YzE3LjEzLDAsNDAuMjUsOC4xNyw0MC4yNSwzNy43M3MtMTguMzksNDAuNC00MC40LDQwLjRoLTMwLjE4djE4LjQ5YzAsNy4yNC01Ljg3LDEzLjEtMTMuMSwxMy4xaC0yOS4wM1pNMTkwLjM1LDI3LjE0djI3LjJoOC4xN2MxMC4wNiwwLDIwLjI4LTEuODksMjAuMjgtMTQuMTVzLTEwLjIyLTEzLjA1LTIwLjQ0LTEzLjA1aC04LjAyWiIvPjxwYXRoIGQ9Ik00ODguMjMsNjYuMTJjMCwzNS41My0yMS44NSw0Ny4xNy01NS4wMiw0Ny4xNy0zMC42NiwwLTU0LjcxLTEyLjU4LTU0LjcxLTQ0Ljk3VjEuNjdoMjkuMDNjNy4yNCwwLDEzLjExLDUuODcsMTMuMTEsMTMuMTF2NTEuOThjMCwxMC4zOCwyLjk5LDE4LjI0LDEzLjA1LDE4LjI0LDExLDAsMTMuMzYtNy4zOSwxMy4zNi0xOC4wOFYxLjY3czI4LjA2LDAsMjguMDYsMGM3LjI1LDAsMTMuMTEsNS44NywxMy4xMSwxMy4xMWwuMDIsNTEuMzVaIi8+PHBhdGggZD0iTTI3OS40NywxMTEuNFYxLjY3czI5LjAyLDAsMjkuMDIsMGM3LjI0LDAsMTMuMTEsNS44NywxMy4xMSwxMy4xMXY2NC4yNGg0Mi4xNXYxOS4yOGMwLDcuMjQtNS44NiwxMy4xLTEzLjEsMTMuMWgtNzEuMThaIi8+PC9zdmc+" alt="PLUS">
+      <span>Audiosysteem</span>
+    </div>
+    <div class="tabs">
+      <a href="volume.html" class=""><span class="mi">music_note</span>Muziek</a>
+      <a href="presets.html" class=""><span class="mi">queue_music</span>Presets</a>
+      <a href="tts.html" class=""><span class="mi">record_voice_over</span>Text to Speech</a>
+      
+      <a href="beheer.html" class="active"><span class="mi">settings</span>Beheer</a>
+      <a href="gebruikers.html" class=""><span class="mi">group</span>Gebruikers</a>
+      <a href="oidc.html" class=""><span class="mi">key</span>OIDC</a>
+      <a href="logs.html" class=""><span class="mi">receipt_long</span>Logs</a>
+      
+    </div>
+    <div class="topright">
+      
+        <span class="pill pill-user" onclick="openUserMenu()" style="cursor:pointer" title="Mijn profiel">Beheerder (demo)</span>
+        <a class="pill" href="login.html">Uitloggen</a>
+      
+    </div>
+    <div class="hamburger" id="hambBtn" onclick="toggleNav()">
+      <span></span><span></span><span></span>
+    </div>
+  </div>
+  <div class="nav-drawer" id="navDrawer">
+    <a href="volume.html" class=""><span class="mi">music_note</span> Muziek</a>
+    <a href="presets.html" class=""><span class="mi">queue_music</span> Presets</a>
+    <a href="tts.html" class=""><span class="mi">record_voice_over</span> Text to Speech</a>
+    
+    <a href="beheer.html" class="active"><span class="mi">settings</span> Beheer</a>
+    <a href="gebruikers.html" class=""><span class="mi">group</span> Gebruikers</a>
+    <a href="oidc.html" class=""><span class="mi">key</span> OIDC</a>
+    <a href="logs.html" class=""><span class="mi">receipt_long</span> Logs</a>
+    
+    
+    <a href="#"><span class="mi">account_circle</span> Mijn profiel</a>
+    <a href="login.html" style="border-color:#f1b7b0;color:#c62828"><span class="mi">logout</span> Uitloggen (Beheerder (demo))</a>
+    
+  </div>
+  <div class="card-body">
+    
+<style>
+.beheer-tabs{display:flex;gap:6px;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:6px;margin-bottom:20px;border-bottom:1px solid var(--stroke-light)}
+.btab{display:inline-flex;align-items:center;gap:7px;white-space:nowrap;padding:10px 16px;border:1px solid var(--stroke);background:#fff;border-radius:24px 24px 24px 4px;color:var(--fg2);font-weight:600;font-size:14px;cursor:pointer;min-height:44px;flex-shrink:0}
+.btab .mi{font-size:18px;vertical-align:-4px}
+.btab:hover{background:var(--btnh)}
+.btab.active{background:var(--red);border-color:var(--red);color:#fff}
+.bpanel{display:none}
+.bpanel.active{display:block}
+.beheer-save{position:sticky;bottom:0;background:#fff;padding:14px 0 4px;border-top:1px solid var(--stroke-light);margin-top:18px}
+.beheer-card{border:1px solid var(--stroke);border-radius:var(--radius-sm);background:#fff;box-shadow:var(--shadow-sm);padding:18px;margin-bottom:16px}
+.beheer-card h3{margin-top:0}
+</style>
+
+<h1>Beheer</h1>
+
+<div class="beheer-tabs" id="beheerTabs">
+  <button type="button" class="btab active" data-tab="algemeen" onclick="beheerTab('algemeen')"><span class="mi">tune</span> Algemeen</button>
+  <button type="button" class="btab" data-tab="huisstijl" onclick="beheerTab('huisstijl')"><span class="mi">palette</span> Huisstijl</button>
+  <button type="button" class="btab" data-tab="tts" onclick="beheerTab('tts')"><span class="mi">record_voice_over</span> Text to Speech</button>
+  <button type="button" class="btab" data-tab="mededeling" onclick="beheerTab('mededeling')"><span class="mi">new_releases</span> Changelog</button>
+  <button type="button" class="btab" data-tab="audio" onclick="beheerTab('audio')"><span class="mi">graphic_eq</span> Audio</button>
+  <button type="button" class="btab" data-tab="spotifybeheer" onclick="beheerTab('spotifybeheer')"><img src="data:image/png;base64,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" alt="Spotify" style="height:17px;vertical-align:middle;display:inline-block"></button>
+  <button type="button" class="btab" data-tab="plusradio" onclick="beheerTab('plusradio')"><span class="pr-lockup"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 609.09 113.5" fill="currentColor" aria-hidden="true"><path d="M53.03,26.55v17.68c0,4.88-3.96,8.84-8.84,8.84h-17.68C11.87,53.06,0,41.19,0,26.55S11.87.03,26.52.03s26.52,11.87,26.52,26.52"/><path d="M53.03,86.95v-17.68c0-4.88-3.96-8.83-8.84-8.83h-17.68c-14.64,0-26.52,11.87-26.52,26.51s11.87,26.52,26.52,26.52,26.52-11.87,26.52-26.52"/><path d="M60.36,86.96v-17.68c0-4.88,3.96-8.84,8.84-8.84h17.68c14.64,0,26.51,11.87,26.51,26.51s-11.87,26.52-26.51,26.52-26.52-11.87-26.52-26.52"/><path d="M60.41,26.55v17.68c0,4.88,3.96,8.84,8.84,8.84h17.68c14.65,0,26.52-11.87,26.52-26.51S101.57.03,86.92.03s-26.51,11.87-26.51,26.52"/><path d="M602,15c0,7.24-5.87,13.11-13.1,13.11-.78,0-1.53-.07-2.28-.19-5.44-.96-11.19-1.5-17.14-1.5-6.6,0-18.08.16-18.08,7.23,0,14.3,57.69.79,57.69,43.07,0,29.4-29.08,36.79-53.45,36.79-12.29,0-22.95-.9-34.25-2.92-6.24-1.01-11.03-6.42-11.03-12.95v-17.76c11.33,4.72,25.16,7.23,37.73,7.23,9.91,0,18.87-2.04,18.87-7.55,0-14.78-57.69-1.41-57.69-44.02,0-30.18,31.44-35.52,56.44-35.52,11.79,0,24.84,1.41,36.31,3.77v11.23h-.02Z"/><path d="M148.22,111.4V14.77c0-7.24,5.87-13.11,13.11-13.11h59.36c17.13,0,40.25,8.17,40.25,37.73s-18.39,40.4-40.4,40.4h-30.18v18.49c0,7.24-5.87,13.1-13.1,13.1h-29.03ZM190.35,27.14v27.2h8.17c10.06,0,20.28-1.89,20.28-14.15s-10.22-13.05-20.44-13.05h-8.02Z"/><path d="M488.23,66.12c0,35.53-21.85,47.17-55.02,47.17-30.66,0-54.71-12.58-54.71-44.97V1.67h29.03c7.24,0,13.11,5.87,13.11,13.11v51.98c0,10.38,2.99,18.24,13.05,18.24,11,0,13.36-7.39,13.36-18.08V1.67s28.06,0,28.06,0c7.25,0,13.11,5.87,13.11,13.11l.02,51.35Z"/><path d="M279.47,111.4V1.67s29.02,0,29.02,0c7.24,0,13.11,5.87,13.11,13.11v64.24h42.15v19.28c0,7.24-5.86,13.1-13.1,13.1h-71.18Z"/></svg><span class="pr-radio">RADIO</span></span></button>
+  <button type="button" class="btab" data-tab="ip" onclick="beheerTab('ip')"><span class="mi">verified_user</span> Toegang</button>
+  <button type="button" class="btab" data-tab="woorden" onclick="beheerTab('woorden')"><span class="mi">block</span> Woordfilter</button>
+  <button type="button" class="btab" data-tab="snel" onclick="beheerTab('snel')"><span class="mi">bolt</span> Snel invoegen</button>
+  <button type="button" class="btab" data-tab="schema" onclick="beheerTab('schema')"><span class="mi">smart_toy</span> Automatiseringen</button>
+</div>
+
+<form method="post" action="#">
+
+  <!-- ALGEMEEN -->
+  <div class="bpanel active" data-panel="algemeen">
+    <div class="beheer-card" style="border-left:4px solid var(--green)">
+      <h3 style="display:flex;align-items:center;gap:8px"><span class="mi">system_update</span> Systeem &amp; updates</h3>
+      <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+        <div>
+          <div class="label" style="margin:0">Huidige versie</div>
+          <div id="sysCurVer" style="font-size:20px;font-weight:800;color:var(--green-dark)">v7.8.2</div>
+        </div>
+        <div id="sysUpdInfo" class="help" style="margin:0;flex:1;min-width:180px">Klik op &laquo;Controleren&raquo; om te kijken of er een nieuwe versie is.</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button type="button" class="btn btn-sm btn-inline" style="width:auto" onclick="sysCheck()"><span class="mi">refresh</span> Controleren</button>
+          <button type="button" class="btn btn-sm btn-primary btn-inline" style="width:auto;display:none" id="sysUpdBtn" onclick="sysUpdate()"><span class="mi">download</span> Nu bijwerken</button>
+        </div>
+      </div>
+      <div id="sysUpdMsg" style="margin-top:10px;font-size:13px;display:none"></div>
+      <div class="help" style="margin-top:8px">Haalt de laatste versie van GitHub. Na een update herstart de app automatisch &mdash; je hoeft hiervoor niet in de console.</div>
+    </div>
+    <script>
+    function sysCheck(){
+      var info=document.getElementById('sysUpdInfo'); info.textContent='Controleren\u2026';
+      fetch('/api/system/version').then(function(r){return r.json();}).then(function(j){
+        document.getElementById('sysCurVer').textContent=j.current||'?';
+        var btn=document.getElementById('sysUpdBtn');
+        if(!j.is_git){ info.textContent='Deze installatie is niet via GitHub ge\u00efnstalleerd (updaten via de console).'; btn.style.display='none'; return; }
+        if(j.update_available){ info.innerHTML='Nieuwe versie beschikbaar: <b>'+(j.latest||'nieuwer')+'</b>'; btn.style.display='inline-flex'; }
+        else { info.textContent='Je hebt de laatste versie ('+(j.latest||j.current)+').'; btn.style.display='none'; }
+      }).catch(function(){ info.textContent='Kon niet controleren.'; });
+    }
+    function sysUpdate(){
+      if(!confirm('Nu bijwerken naar de laatste versie? De app herstart heel even.')) return;
+      var m=document.getElementById('sysUpdMsg'); m.style.display='block'; m.style.color='var(--green-dark)';
+      m.innerHTML='<span class="mi mi-sm" style="vertical-align:middle">autorenew</span> Bijwerken\u2026 de app herstart zo. Deze pagina laadt daarna vanzelf opnieuw.';
+      document.getElementById('sysUpdBtn').disabled=true;
+      fetch('/api/system/update',{method:'POST'}).then(function(r){return r.json();}).then(function(j){
+        if(!j.ok){ m.style.color='#c62828'; m.textContent=j.error||'Bijwerken mislukt.'; document.getElementById('sysUpdBtn').disabled=false; return; }
+        var t=setInterval(function(){ fetch('/api/system/version',{cache:'no-store'}).then(function(r){return r.json();}).then(function(v){ if(v && !v.update_available){ clearInterval(t); location.reload(); } }).catch(function(){}); },4000);
+      }).catch(function(){ m.style.color='#c62828'; m.textContent='Bijwerken mislukt.'; document.getElementById('sysUpdBtn').disabled=false; });
+    }
+    </script>
+    <div class="row">
+      <div class="col">
+        <div class="beheer-card">
+          <h3>Locatie &amp; weergave</h3>
+          <div class="label">Locatie / filiaal</div>
+          <input class="input" type="text" name="location_name" value="Demo"
+                 placeholder="bijv. Centrum (leeg = alleen &quot;PLUS&quot;)" style="margin-bottom:4px">
+          <div class="help" style="margin-bottom:12px">Wordt getoond als &laquo;PLUS [locatie] Audiosysteem&raquo;. Laat leeg voor een generieke installatie.</div>
+          <label class="switch-row">
+            <input type="checkbox" name="show_playing_popup" value="1" >
+            <span>Toon &laquo;nu aan het afspelen&raquo;-popup bij presets</span>
+          </label>
+          <div class="help" style="margin-bottom:12px">Groot venster met presetnaam, icoon en Stop-knop &mdash; handig aan de servicebalie om een verkeerd gekozen omroep meteen te stoppen.</div>
+          <div class="label">Versie</div>
+          <input class="input" type="text" name="version" value="v7.8.2">
+        </div>
+      </div>
+      <div class="col">
+        <div class="beheer-card">
+          <h3>Pagina's zichtbaar</h3>
+          <label class="switch-row"><input type="checkbox" name="page_volume"  value="1" checked> <span>Muziek</span></label>
+          <label class="switch-row"><input type="checkbox" name="page_presets" value="1" checked> <span>Presets</span></label>
+          <label class="switch-row"><input type="checkbox" name="page_tts"     value="1" checked> <span>Text to Speech</span></label>
+        </div>
+        <div class="beheer-card">
+          <h3>Kiosk-sloten (pincode)</h3>
+          <label class="switch-row"><input type="checkbox" name="presets_lock_enabled" value="1" > <span>Presets-slot</span></label>
+          <div class="label" style="margin-top:8px">Presets: vergrendel na (seconden)</div>
+          <input class="input" type="number" min="5" max="3600" name="presets_lock_seconds" value="30" style="margin-bottom:12px">
+          <label class="switch-row"><input type="checkbox" name="tts_lock_enabled" value="1" > <span>Text to Speech-slot</span></label>
+          <div class="label" style="margin-top:8px">Text to Speech: vergrendel na (seconden)</div>
+          <input class="input" type="number" min="5" max="3600" name="tts_lock_seconds" value="30">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TTS -->
+  <div class="bpanel" data-panel="tts">
+    <div class="row">
+      <div class="col">
+        <div class="beheer-card">
+          <h3>Text to Speech-engine &amp; stem</h3>
+          <div class="label">Engine</div>
+          <select class="input" name="tts_engine" style="margin-bottom:10px">
+            <option value="edge"   selected>Edge Text to Speech (Microsoft)</option>
+            <option value="piper"  >Piper (offline)</option>
+            <option value="espeak" >eSpeak (fallback)</option>
+          </select>
+          <div class="label">Edge Text to Speech stem</div>
+          <select class="input" name="tts_edge_voice">
+            <option value="nl-NL-MaartenNeural" selected>Maarten (man, NL)</option>
+            <option value="nl-NL-ColetteNeural" >Colette (vrouw, NL)</option>
+            <option value="nl-BE-ArnaudNeural"  >Arnaud (man, BE)</option>
+            <option value="nl-BE-DenaNeural"    >Dena (vrouw, BE)</option>
+          </select>
+        </div>
+      </div>
+      <div class="col">
+        <div class="beheer-card">
+          <h3>Geluid</h3>
+          <div class="label">Text to Speech gain % (0&ndash;200)</div>
+          <input class="input" type="number" name="tts_gain" min="0" max="200" value="100" style="margin-bottom:10px">
+          <label class="switch-row"><input type="checkbox" name="tts_preroll_enabled" value="1" checked> <span>Preroll (intro) standaard aan</span></label>
+          <label class="switch-row"><input type="checkbox" name="tts_outro_enabled" value="1" > <span>Outro standaard aan</span></label>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MEDEDELING -->
+  <div class="bpanel" data-panel="mededeling">
+    <div class="beheer-card">
+      <h3>Changelog</h3>
+      <textarea class="input" name="announcement_text" style="min-height:220px"># Demo
+
+Dit is een demonstratie met voorbeelddata.</textarea>
+      <label class="switch-row" style="margin-top:8px">
+        <input type="checkbox" name="announcement_enabled" value="1" >
+        <span>Automatisch tonen bij een update</span>
+      </label>
+      <div class="help">Ondersteunt Markdown. Wordt eenmalig getoond aan gebruikers tot je de tekst wijzigt.</div>
+    </div>
+  </div>
+
+  <div class="beheer-save" id="beheerSave">
+    <button class="btn btn-primary btn-inline" type="submit" style="min-width:160px"><span class="mi">save</span> Instellingen opslaan</button>
+  </div>
+</form>
+
+<!-- HUISSTIJL / BRANDING -->
+<div class="bpanel" data-panel="huisstijl">
+  <style>
+    .brand-grid{display:flex;flex-wrap:wrap;gap:14px;margin-bottom:6px}
+    .brand-card{flex:1 1 220px;border:2px solid var(--stroke);border-radius:12px;background:#fff;overflow:hidden;cursor:pointer;transition:border-color .15s,box-shadow .15s;position:relative}
+    .brand-card:has(input:checked){border-color:var(--red);box-shadow:0 4px 14px rgba(0,0,0,.10)}
+    .brand-card input{position:absolute;opacity:0;pointer-events:none}
+    .brand-head{display:flex;align-items:center;gap:12px;padding:16px;color:#fff}
+    .brand-head img{height:30px;width:auto}
+    .brand-head img.boxed{background:#fff;border-radius:6px;padding:3px;box-sizing:content-box}
+    .brand-head .bn{font-weight:800;font-size:16px}
+    .brand-body{padding:12px 16px}
+    .brand-swatches{display:flex;gap:6px;margin-bottom:8px}
+    .brand-swatch{width:26px;height:26px;border-radius:6px;border:1px solid rgba(0,0,0,.08)}
+    .brand-check{position:absolute;top:10px;right:10px;color:#fff;opacity:0;transition:opacity .15s}
+    .brand-card:has(input:checked) .brand-check{opacity:1}
+    .brand-radio-name{font-size:13px;color:var(--fg3)}
+  </style>
+  <div class="row">
+    <div class="col">
+      <div class="beheer-card">
+        <h3><span class="mi">palette</span> Huisstijl kiezen</h3>
+        <div class="help" style="margin-bottom:14px">Kies de winkelhuisstijl. Dit past kleuren, logo en naam van het hele omroepsysteem aan &mdash; inlogpagina, koppen, knoppen en de footer. Nieuwe ketens (bijv. Jumbo) kunnen later worden toegevoegd.</div>
+        <form method="post" action="#" enctype="multipart/form-data" id="brandForm">
+          <div class="brand-grid">
+            
+            <label class="brand-card">
+              <input type="radio" name="brand_theme" value="plus" checked onchange="brandPick('PLUS')">
+              <span class="brand-check" style="color:#ffffff"><span class="mi">check_circle</span></span>
+              <div class="brand-head" style="background:#80bd1d;color:#ffffff">
+                <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2MDkuMDkgMTEzLjUiIGZpbGw9IiNmZmZmZmYiPjxwYXRoIGQ9Ik01My4wMywyNi41NXYxNy42OGMwLDQuODgtMy45Niw4Ljg0LTguODQsOC44NGgtMTcuNjhDMTEuODcsNTMuMDYsMCw0MS4xOSwwLDI2LjU1UzExLjg3LjAzLDI2LjUyLjAzczI2LjUyLDExLjg3LDI2LjUyLDI2LjUyIi8+PHBhdGggZD0iTTUzLjAzLDg2Ljk1di0xNy42OGMwLTQuODgtMy45Ni04LjgzLTguODQtOC44M2gtMTcuNjhjLTE0LjY0LDAtMjYuNTIsMTEuODctMjYuNTIsMjYuNTFzMTEuODcsMjYuNTIsMjYuNTIsMjYuNTIsMjYuNTItMTEuODcsMjYuNTItMjYuNTIiLz48cGF0aCBkPSJNNjAuMzYsODYuOTZ2LTE3LjY4YzAtNC44OCwzLjk2LTguODQsOC44NC04Ljg0aDE3LjY4YzE0LjY0LDAsMjYuNTEsMTEuODcsMjYuNTEsMjYuNTFzLTExLjg3LDI2LjUyLTI2LjUxLDI2LjUyLTI2LjUyLTExLjg3LTI2LjUyLTI2LjUyIi8+PHBhdGggZD0iTTYwLjQxLDI2LjU1djE3LjY4YzAsNC44OCwzLjk2LDguODQsOC44NCw4Ljg0aDE3LjY4YzE0LjY1LDAsMjYuNTItMTEuODcsMjYuNTItMjYuNTFTMTAxLjU3LjAzLDg2LjkyLjAzcy0yNi41MSwxMS44Ny0yNi41MSwyNi41MiIvPjxwYXRoIGQ9Ik02MDIsMTVjMCw3LjI0LTUuODcsMTMuMTEtMTMuMSwxMy4xMS0uNzgsMC0xLjUzLS4wNy0yLjI4LS4xOS01LjQ0LS45Ni0xMS4xOS0xLjUtMTcuMTQtMS41LTYuNiwwLTE4LjA4LjE2LTE4LjA4LDcuMjMsMCwxNC4zLDU3LjY5Ljc5LDU3LjY5LDQzLjA3LDAsMjkuNC0yOS4wOCwzNi43OS01My40NSwzNi43OS0xMi4yOSwwLTIyLjk1LS45LTM0LjI1LTIuOTItNi4yNC0xLjAxLTExLjAzLTYuNDItMTEuMDMtMTIuOTV2LTE3Ljc2YzExLjMzLDQuNzIsMjUuMTYsNy4yMywzNy43Myw3LjIzLDkuOTEsMCwxOC44Ny0yLjA0LDE4Ljg3LTcuNTUsMC0xNC43OC01Ny42OS0xLjQxLTU3LjY5LTQ0LjAyLDAtMzAuMTgsMzEuNDQtMzUuNTIsNTYuNDQtMzUuNTIsMTEuNzksMCwyNC44NCwxLjQxLDM2LjMxLDMuNzd2MTEuMjNoLS4wMloiLz48cGF0aCBkPSJNMTQ4LjIyLDExMS40VjE0Ljc3YzAtNy4yNCw1Ljg3LTEzLjExLDEzLjExLTEzLjExaDU5LjM2YzE3LjEzLDAsNDAuMjUsOC4xNyw0MC4yNSwzNy43M3MtMTguMzksNDAuNC00MC40LDQwLjRoLTMwLjE4djE4LjQ5YzAsNy4yNC01Ljg3LDEzLjEtMTMuMSwxMy4xaC0yOS4wM1pNMTkwLjM1LDI3LjE0djI3LjJoOC4xN2MxMC4wNiwwLDIwLjI4LTEuODksMjAuMjgtMTQuMTVzLTEwLjIyLTEzLjA1LTIwLjQ0LTEzLjA1aC04LjAyWiIvPjxwYXRoIGQ9Ik00ODguMjMsNjYuMTJjMCwzNS41My0yMS44NSw0Ny4xNy01NS4wMiw0Ny4xNy0zMC42NiwwLTU0LjcxLTEyLjU4LTU0LjcxLTQ0Ljk3VjEuNjdoMjkuMDNjNy4yNCwwLDEzLjExLDUuODcsMTMuMTEsMTMuMTF2NTEuOThjMCwxMC4zOCwyLjk5LDE4LjI0LDEzLjA1LDE4LjI0LDExLDAsMTMuMzYtNy4zOSwxMy4zNi0xOC4wOFYxLjY3czI4LjA2LDAsMjguMDYsMGM3LjI1LDAsMTMuMTEsNS44NywxMy4xMSwxMy4xMWwuMDIsNTEuMzVaIi8+PHBhdGggZD0iTTI3OS40NywxMTEuNFYxLjY3czI5LjAyLDAsMjkuMDIsMGM3LjI0LDAsMTMuMTEsNS44NywxMy4xMSwxMy4xMXY2NC4yNGg0Mi4xNXYxOS4yOGMwLDcuMjQtNS44NiwxMy4xLTEzLjEsMTMuMWgtNzEuMThaIi8+PC9zdmc+" alt="PLUS" class="">
+                <span class="bn">PLUS</span>
+              </div>
+              <div class="brand-body">
+                <div class="brand-swatches">
+                  <span class="brand-swatch" style="background:#80bd1d" title="Primair"></span>
+                  <span class="brand-swatch" style="background:#115013" title="Koppen"></span>
+                  <span class="brand-swatch" style="background:#227647" title="Accent"></span>
+                </div>
+                <div class="brand-radio-name">Radio: PLUS Radio</div>
+              </div>
+            </label>
+            
+            <label class="brand-card">
+              <input type="radio" name="brand_theme" value="ah"  onchange="brandPick('Albert Heijn')">
+              <span class="brand-check" style="color:#ffffff"><span class="mi">check_circle</span></span>
+              <div class="brand-head" style="background:#00ade6;color:#ffffff">
+                <img src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHBhdGggZmlsbC1ydWxlPSJldmVub2RkIiBjbGlwLXJ1bGU9ImV2ZW5vZGQiIGQ9Ik0yMy4yMTggMTEuNDcxbC01LjUyLTEwLjMwOGEyLjE3IDIuMTcgMCAwMC0yLjk3Ny0uODg3TDQuNjE4IDUuOTI0Yy0uNDU0LjI2LS44NzkuNzE2LTEuMDcyIDEuMzYybC0yLjcxMSA5LjQ0Yy0uMzI1IDEuMTMuMzEgMi4zMTQgMS40MiAyLjY0NWwxNS45MjUgNC41NDJjMS4xMDguMzMyIDIuMjctLjMxNyAyLjU5Ni0xLjQ0N2wyLjYzNC05LjI1N2MuMTcxLS41NDQuMDc1LTEuMjE0LS4xOTItMS43Mzh6IiBmaWxsPSIjMDBBREU2Ii8+PHBhdGggZmlsbC1ydWxlPSJldmVub2RkIiBjbGlwLXJ1bGU9ImV2ZW5vZGQiIGQ9Ik0xMy4zNzkgNi4wMzVzLS4wMDkgNC4yOS0uMDAxIDQuMjhsLjIwMi0uMjljLjg0MS0xLjIwNyAxLjY1Ny0yLjMyMSAzLjA5Mi0yLjMyMSAxLjcxNi0uMDAxIDIuNjQ2IDEuNDI3IDIuNjUyIDIuNjI5di41MzJsLS4wMDggNy4xNjNIMTcuMzlsLS4wMDktNy4yODRjMC0xLS44MDgtLjk5OC0uODItLjk5OC0uNjUgMC0xLjg1IDEuNjI0LTMuMTgzIDMuNDI5djQuODU1bC0xLjk0Ny4wMDItLjAwMy0yLjI0N3MtMS4yODggMi4yNDgtMy4yMTcgMi4yNWMtMi4xODggMC0yLjkzLTEuNDk2LTIuOTM2LTUuMDgtLjAwMy0zLjQxNS40ODQtNS4yNDIgMi44My01LjI0NCAxLjc4My0uMDAyIDMuMzE2IDIuNTgzIDMuMzE2IDIuNTgzVjguNjU3bDEuOTU4LTIuNjIyek04LjEzMiA5Ljc0Yy0uODk2LjAwMi0uOTc0Ljk0My0uOTcxIDMuMjEyLjAwMyAyLjI3LjEyNiAzLjE1NS45NjkgMy4xNTUgMS4xNDQtLjAwMiAyLjk0OC0yLjg5NyAyLjk0OC0yLjg5N3MtMS43OS0zLjQ3LTIuOTQ2LTMuNDd6IiBmaWxsPSIjZmZmIi8+PC9zdmc+" alt="Albert Heijn" class="boxed">
+                <span class="bn">Albert Heijn</span>
+              </div>
+              <div class="brand-body">
+                <div class="brand-swatches">
+                  <span class="brand-swatch" style="background:#00ade6" title="Primair"></span>
+                  <span class="brand-swatch" style="background:#00668d" title="Koppen"></span>
+                  <span class="brand-swatch" style="background:#ff7900" title="Accent"></span>
+                </div>
+                <div class="brand-radio-name">Radio: AH Radio</div>
+              </div>
+            </label>
+            
+            <label class="brand-card">
+              <input type="radio" name="brand_theme" value="jumbo"  onchange="brandPick('Jumbo')">
+              <span class="brand-check" style="color:#141414"><span class="mi">check_circle</span></span>
+              <div class="brand-head" style="background:#ffb800;color:#141414">
+                <img src="static/jumbo_logo.png" alt="Jumbo" class="boxed">
+                <span class="bn">Jumbo</span>
+              </div>
+              <div class="brand-body">
+                <div class="brand-swatches">
+                  <span class="brand-swatch" style="background:#ffb800" title="Primair"></span>
+                  <span class="brand-swatch" style="background:#141414" title="Koppen"></span>
+                  <span class="brand-swatch" style="background:#141414" title="Accent"></span>
+                </div>
+                <div class="brand-radio-name">Radio: Jumbo Radio</div>
+              </div>
+            </label>
+            
+          </div>
+          <div class="beheer-card" style="margin-top:14px;background:var(--bg-soft)">
+            <h3 style="margin-top:0"><span class="mi">image</span> Eigen logo voor <span id="brandLogoFor">PLUS</span></h3>
+            <div class="help" style="margin-bottom:10px">Optioneel eigen logo voor het <b>geselecteerde</b> thema (SVG/PNG, max&nbsp;512&nbsp;kB). Vervangt het standaardlogo op de topbar en inlogpagina. Kies eerst het thema hierboven en sla daarna op.</div>
+            <div class="label">Logo uploaden</div>
+            <input class="input" type="file" name="brand_logo_file" accept=".svg,.png,.jpg,.jpeg,.webp,.gif" style="margin-bottom:12px">
+            <div class="label">of logo-URL</div>
+            <input class="input" type="text" name="brand_logo_url" placeholder="https://…  of  data:image/svg+xml;base64,…" style="margin-bottom:12px">
+            <label class="switch-row"><input type="checkbox" name="brand_logo_clear" value="1"> <span>Eigen logo verwijderen (terug naar standaard)</span></label>
+          </div>
+          <div style="height:12px"></div>
+          <button class="btn btn-primary btn-inline" type="submit"><span class="mi">save</span> Huisstijl opslaan</button>
+        </form>
+      </div>
+    </div>
+  </div>
+  <script>
+  function brandPick(name){ var e=document.getElementById('brandLogoFor'); if(e) e.textContent=name; }
+  </script>
+</div>
+
+<!-- AUDIO & PI -->
+<div class="bpanel" data-panel="audio">
+  <div class="row">
+    <div class="col">
+      <div class="beheer-card">
+        <h3>Preroll (intro)</h3>
+        <form method="post" action="#" enctype="multipart/form-data">
+          <input class="input" type="file" name="file" accept=".wav,.mp3,.m4a" required style="margin-bottom:8px">
+          <button class="btn btn-inline" type="submit"><span class="mi">upload</span> Upload / Vervang</button>
+        </form>
+        <div style="height:10px"></div>
+        <div class="help">Geen preroll ingesteld.</div>
+      </div>
+    </div>
+    <div class="col">
+      <div class="beheer-card">
+        <h3>Outro</h3>
+        <p class="help" style="margin-bottom:12px">Wordt (indien ingeschakeld) ná de preset of Text to Speech afgespeeld, vóórdat het achtergrondvolume terugkomt. Per preset via Presets &rarr; Bewerken; voor Text to Speech via de checkbox op de Text to Speech-pagina.</p>
+        <form method="post" action="#" enctype="multipart/form-data">
+          <input class="input" type="file" name="file" accept=".wav,.mp3,.m4a" required style="margin-bottom:8px">
+          <button class="btn btn-inline" type="submit"><span class="mi">upload</span> Upload / Vervang</button>
+        </form>
+        <div style="height:10px"></div>
+        <div class="help">Geen outro ingesteld.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="col">
+      <div class="beheer-card">
+        <h3>Achtergrond tijdens omroep</h3>
+        <div style="display:flex;gap:10px;align-items:center;margin-bottom:12px">
+          <input class="range" type="range" min="0" max="80" id="piDuckSlider"
+                 value="0"
+                 oninput="document.getElementById('piDuckNum').textContent=this.value+'%'">
+          <span id="piDuckNum" style="min-width:42px;text-align:right;font-weight:700">0%</span>
+        </div>
+        <button class="btn btn-sm btn-inline" onclick="piSaveDuck()"><span class="mi">save</span> Opslaan niveau</button>
+        <div id="duckMsg" style="margin-top:8px;font-size:13px;display:none"></div>
+        <div class="help" style="margin-top:8px">Naar welk niveau <b>zowel Spotify als RCA PlusRadio</b> gaan tijdens elke preset of Text to Speech. <b>0% = volledig stil</b> (aanbevolen). Daarna gaat de achtergrond automatisch terug naar het originele niveau.</div>
+      </div>
+    </div>
+    <div class="col"></div>
+  </div>
+</div>
+
+<!-- SPOTIFY -->
+<div class="bpanel" data-panel="spotifybeheer">
+  <div class="row">
+    <div class="col">
+      <div class="beheer-card">
+        <h3 style="display:flex;align-items:center;gap:8px"><img src="data:image/png;base64,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" alt="Spotify" style="height:20px"> Bediening</h3>
+        <label style="display:flex;align-items:center;gap:10px;cursor:pointer">
+          <input type="checkbox" id="spCtrlToggle"  onchange="spSaveMode()">
+          <span>Transportknoppen + slepen inschakelen</span>
+        </label>
+        <div class="help" style="margin-top:8px">Zet dit aan om onder <b>Muziek &rarr; Spotify</b> te kunnen afspelen, pauzeren, doorspoelen en de wachtrij te slepen. Uit = alleen weergave (nu-speelt).</div>
+        <div id="spCtrlMsg" style="margin-top:8px;font-size:13px;display:none"></div>
+        <div style="height:14px"></div>
+        <button class="btn btn-sm btn-gold btn-inline" onclick="spRestart()"><span class="mi">restart_alt</span> Spotify-speler herstarten</button>
+        <div class="help" style="margin-top:6px">Herstart de lokale go-librespot op de VM (bij haperende Connect/afspelen).</div>
+        <div id="spRestartMsg" style="margin-top:8px;font-size:13px;display:none"></div>
+      </div>
+    </div>
+    <div class="col">
+      <div class="beheer-card">
+        <h3 style="display:flex;align-items:center;gap:8px"><img src="data:image/png;base64,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" alt="Spotify" style="height:20px"> Web API &mdash; zoeken &amp; wachtrij</h3>
+        <div class="help" style="margin-bottom:10px">Koppel het <b>huis-Spotify-account (Premium)</b> zodat je onder <b>Muziek &rarr; Spotify</b> kunt zoeken, afspelen en in de wachtrij zetten. Gegevens uit je Spotify-app (developer.spotify.com). Redirect-URI in die app: <code>https://demo.example/spotify/callback</code>.</div>
+        <div class="row">
+          <div class="col"><div class="label">Client ID</div><input class="input" id="spCidInput" autocomplete="off"></div>
+          <div class="col"><div class="label">Client secret</div><input class="input" type="password" id="spSecInput" placeholder="leeg = ongewijzigd laten" autocomplete="off"></div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+          <button class="btn btn-inline" style="width:auto" onclick="spAdminSave()"><span class="mi">save</span> Opslaan</button>
+          <a class="btn btn-primary btn-inline" style="width:auto" id="spConnectBtn" href="#" target="_blank"><span class="mi">link</span> Koppelen met Spotify</a>
+        </div>
+        <div id="spAdminStatus" class="help" style="margin-top:10px">&nbsp;</div>
+      </div>
+    </div>
+  </div>
+  <div class="beheer-card">
+    <h3 style="display:flex;align-items:center;gap:8px"><img src="data:image/png;base64,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" alt="Spotify" style="height:20px"> Reclame over Spotify</h3>
+    <label class="switch-row"><input type="checkbox" id="commDuckToggle" checked onchange="spCommToggle('commercial_duck_spotify',this)"> <span>Spotify automatisch dempen tijdens een reclame</span></label>
+    <label class="switch-row"><input type="checkbox" id="commReplayToggle"  onchange="spCommToggle('commercial_replay',this)"> <span>Reclame <b>tussen de nummers</b> over Spotify afspelen <span style="color:#b37e00;font-weight:700">(experimenteel)</span><br><span class="help">Neemt de reclame compleet op en speelt 'm af bij de e&eacute;rstvolgende nummerovergang &mdash; nooit midden in een nummer. Test op een rustig moment.</span></span></label>
+    <div id="commToggleMsg" style="margin-top:6px;font-size:13px;display:none"></div>
+    <div style="margin-top:10px;padding:10px 12px;background:var(--bg2, #f6f7f4);border-radius:10px">
+      <div class="label" style="margin:0 0 6px"><span class="mi mi-sm" style="vertical-align:middle">download</span> Laatst opgenomen reclames</div>
+      <div id="recComList" class="help" style="margin:0">Laden…</div>
+    </div>
+  </div>
+  <script>
+  function spCommToggle(key,el){
+    fetch('/api/spotify/comm_toggle',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key:key,on:el.checked})})
+      .then(function(r){return r.json();}).then(function(j){
+        var m=document.getElementById('commToggleMsg'); if(!m) return;
+        m.style.display='block';m.style.color=j.ok?'#4b7a12':'#c62828';m.textContent=j.ok?'Opgeslagen':'Fout';
+        setTimeout(function(){m.style.display='none';},2500);
+      }).catch(function(){});
+  }
+  function loadRecCom(){
+    var el=document.getElementById('recComList'); if(!el) return;
+    fetch('/api/commercials/recorded',{cache:'no-store'}).then(function(r){return r.json();}).then(function(j){
+      var it=(j&&j.items)||[];
+      if(!it.length){ el.textContent='Nog geen opnames. Zodra een reclame over Spotify heeft gespeeld verschijnt \'ie hier.'; return; }
+      el.innerHTML=it.map(function(x){
+        return '<div style="display:flex;align-items:center;gap:8px;padding:4px 0"><a class="btn btn-sm btn-inline" style="width:auto" href="'+x.url+'"><span class="mi">download</span> mp3</a><span style="color:var(--fg3)">'+x.when+' &middot; '+x.size_kb+' kB</span></div>';
+      }).join('');
+    }).catch(function(){ el.textContent='Kon opnames niet laden.'; });
+  }
+  loadRecCom(); setInterval(loadRecCom, 30000);
+  function spAdminLoad(){
+    fetch('/api/spotify/admin/status').then(function(r){return r.json();}).then(function(j){
+      var c=document.getElementById('spCidInput'); if(c&&!c.value) c.value=j.client_id||'';
+      var b=document.getElementById('spConnectBtn'); if(b) b.href=j.auth_url||'/spotify/auth';
+      var s=j.connected?(j.token_ok?('Gekoppeld ✔ — apparaat: '+(j.device_id?'gevonden':'nog niet gevonden (zorg dat Spotify actief is op de VM)')):'Gekoppeld, maar token vernieuwen faalt — controleer client secret'):'Nog niet gekoppeld';
+      var el=document.getElementById('spAdminStatus'); if(el) el.textContent=s;
+    }).catch(function(){});
+  }
+  function spAdminSave(){
+    var body={client_id:document.getElementById('spCidInput').value,client_secret:document.getElementById('spSecInput').value};
+    fetch('/api/spotify/admin/save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
+      .then(function(r){return r.json();}).then(function(){ document.getElementById('spSecInput').value=''; spAdminLoad(); });
+  }
+  spAdminLoad();
+  </script>
+</div>
+
+<!-- PLUS RADIO -->
+<div class="bpanel" data-panel="plusradio">
+  <div class="row">
+    <div class="col">
+      <div class="beheer-card">
+        <h3>PLUS Radio-streamer</h3>
+        <div class="help" style="margin-bottom:12px">Instellingen van de Streamit-streamer en de online stream. Handig bij uitrol in een <b>andere winkel</b>: pas hier het IP en de Icecast-gegevens aan.</div>
+        <form method="post" action="#">
+          <label class="switch-row"><input type="checkbox" name="lisa_enabled" value="1" > <span>Huidig nummer uitlezen van de streamer</span></label>
+          <div class="row">
+            <div class="col"><div class="label">IP-adres streamer</div><input class="input" name="lisa_host" value="" placeholder="bijv. 10.0.0.50"></div>
+            <div class="col"><div class="label">Telnet-poort</div><input class="input" name="lisa_port" value="23"></div>
+          </div>
+          <label class="switch-row" style="margin-top:12px"><input type="checkbox" name="shazam_enabled" value="1" checked> <span>Nummer herkennen (Shazam) &rarr; volledige titel, artiest &amp; albumcover</span></label>
+          <div class="help" style="margin-top:6px">De reclame-over-Spotify-instellingen staan nu onder het <b>Spotify</b>-tabblad.</div>
+          <div class="label" style="margin-top:12px">Commercial-volume op de online stream</div>
+          <div style="display:flex;align-items:center;gap:10px">
+            <button type="button" class="btn vol-step" style="width:46px;flex:0 0 auto;font-size:20px;font-weight:800" onclick="streamPct(-5)">−</button>
+            <span id="streamPctVal" style="min-width:64px;text-align:center;font-weight:800;font-size:18px;color:var(--green-dark)">50%</span>
+            <button type="button" class="btn vol-step" style="width:46px;flex:0 0 auto;font-size:20px;font-weight:800" onclick="streamPct(5)">+</button>
+            <span class="help" style="margin:0">van normaal, tijdens een reclame</span>
+          </div>
+          <script>
+          function streamPct(d){
+            fetch('/api/stream/commercial_pct',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({delta:d})})
+              .then(function(r){return r.json();}).then(function(j){ if(j.ok){var e=document.getElementById('streamPctVal'); if(e) e.textContent=j.pct+'%';} }).catch(function(){});
+          }
+          </script>
+          <div class="label" style="margin-top:16px;border-top:1px solid var(--stroke-light);padding-top:12px">Online stream (Icecast-metadata)</div>
+          <label class="switch-row"><input type="checkbox" name="icecast_meta_enabled" value="1" checked> <span>Titel meesturen naar de stream</span></label>
+          <div class="row">
+            <div class="col"><div class="label">Admin-URL</div><input class="input" name="icecast_admin_url" value="http://localhost:8000/admin/metadata"></div>
+            <div class="col"><div class="label">Mount</div><input class="input" name="icecast_mount" value="/rca"></div>
+          </div>
+          <div class="row">
+            <div class="col"><div class="label">Admin-gebruiker</div><input class="input" name="icecast_admin_user" value="admin"></div>
+            <div class="col"><div class="label">Admin-wachtwoord</div><input class="input" type="password" name="icecast_admin_pass" placeholder="leeg = ongewijzigd laten"></div>
+          </div>
+          <div class="label" style="margin-top:16px;border-top:1px solid var(--stroke-light);padding-top:12px">TuneIn (nu speelt doorgeven)</div>
+          <label class="switch-row"><input type="checkbox" name="tunein_enabled" value="1" > <span>Huidige titel/artiest naar TuneIn pushen</span></label>
+          <div class="help" style="margin-bottom:8px">Vereist TuneIn-broadcaster-gegevens (partnerId + partnerKey via TuneIn). StationId staat in je TuneIn-URL (bijv. <code>s359456</code>).</div>
+          <div class="row">
+            <div class="col"><div class="label">Partner ID</div><input class="input" name="tunein_partner_id" value=""></div>
+            <div class="col"><div class="label">Station ID</div><input class="input" name="tunein_station_id" value="s359456"></div>
+          </div>
+          <div class="label">Partner Key</div>
+          <input class="input" type="password" name="tunein_partner_key" placeholder="leeg = ongewijzigd laten">
+          <div style="height:14px"></div>
+          <button class="btn btn-primary btn-inline" type="submit"><span class="mi">save</span> Opslaan</button>
+        </form>
+      </div>
+    </div>
+    <div class="col">
+      <div class="beheer-card">
+        <h3>Streamer-console</h3>
+        <div class="help" style="margin-bottom:10px">Commando's naar de streamer. Bv. <code>getinfo title</code>, <code>getinfo playerstat</code>, <code>channel</code>, <code>pp 1</code> (Plus Main), <code>pp 2</code> (Plus Easy), <code>isp</code>, <code>ver</code>. Reset-/log-commando's zijn geblokkeerd.</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
+          <button class="btn btn-sm btn-inline" onclick="lisaCmd('getinfo title')">Titel</button>
+          <button class="btn btn-sm btn-inline" onclick="lisaCmd('getinfo playerstat')">Status</button>
+          <button class="btn btn-sm btn-inline" onclick="lisaCmd('channel')">Kanalen</button>
+          <button class="btn btn-sm btn-inline" onclick="lisaCmd('isp')">Netwerk</button>
+          <button class="btn btn-sm btn-inline" onclick="lisaCmd('ver')">Versie</button>
+        </div>
+        <div style="display:flex;gap:8px;margin-bottom:10px">
+          <input class="input" id="lisaCmdInput" placeholder="commando… (bv. getinfo title)" onkeydown="if(event.key==='Enter'){event.preventDefault();lisaCmd();}">
+          <button class="btn btn-sm btn-inline" style="width:auto;flex:0 0 auto" onclick="lisaCmd()"><span class="mi">send</span> Stuur</button>
+        </div>
+        <pre id="lisaOut" style="background:#0d1a0d;color:#c8e6a0;border-radius:10px;padding:12px;font-size:12px;line-height:1.5;max-height:300px;overflow:auto;white-space:pre-wrap;word-break:break-word;margin:0">Stuur een commando naar de streamer…</pre>
+      </div>
+    </div>
+  </div>
+  <div class="beheer-card" style="margin-top:16px">
+    <h3>Streamer herstarten</h3>
+    <div class="help" style="margin-bottom:10px">Herstart de Streamit-streamer. De <b>muziek valt ~30&ndash;60 seconden weg</b> en de <b>playlist begint opnieuw vanaf het begin</b>. Gebruik dit alleen als de streamer hapert.</div>
+    <button class="btn btn-gold btn-inline" style="width:auto" onclick="prRestartAsk()"><span class="mi">restart_alt</span> Streamer herstarten</button>
+    <span id="prRestartMsg" style="font-size:13px;margin-left:8px"></span>
+  </div>
+  <div id="prRestartModal" class="modal-backdrop" onclick="if(event.target===this)prRestartClose()">
+    <div class="modal" style="max-width:440px;text-align:center;border-top:6px solid #e0a400">
+      <span class="mi" style="font-size:52px;color:#e0a400">warning</span>
+      <div style="font-size:13px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#b37e00;margin:6px 0">Let op</div>
+      <div style="font-size:17px;font-weight:800;color:var(--green-dark);margin-bottom:8px">Streamer herstarten?</div>
+      <div class="help" style="margin-bottom:18px">De streamer start opnieuw op. De <b>muziek valt ongeveer 30&ndash;60 seconden weg</b> en de <b>playlist begint weer vanaf het begin</b>.</div>
+      <button class="btn btn-primary" onclick="prRestartDo()" style="min-height:50px;font-weight:800"><span class="mi">restart_alt</span> Ja, herstarten</button>
+      <div style="height:8px"></div>
+      <button class="btn" onclick="prRestartClose()"><span class="mi">close</span> Annuleren</button>
+    </div>
+  </div>
+  <script>
+  function prRestartAsk(){ var m=document.getElementById('prRestartModal'); if(m) m.style.display='flex'; }
+  function prRestartClose(){ var m=document.getElementById('prRestartModal'); if(m) m.style.display='none'; }
+  function prRestartDo(){
+    prRestartClose();
+    var s=document.getElementById('prRestartMsg'); if(s){s.style.color='#4b7a12';s.textContent='Herstarten… (kan ~1 min duren)';}
+    fetch('/api/plusradio/restart',{method:'POST'}).then(function(r){return r.json();}).then(function(j){
+      if(s){ s.textContent=j.ok?'Streamer wordt opnieuw opgestart.':'Herstarten mislukt.'; setTimeout(function(){s.textContent='';},8000); }
+    }).catch(function(){ if(s){ s.style.color='#c62828'; s.textContent='Herstarten mislukt.'; } });
+  }
+  </script>
+  <script>
+  function lisaCmd(cmd){
+    var inp=document.getElementById('lisaCmdInput');
+    var fromInput=(cmd===undefined);
+    cmd=cmd||(inp?inp.value.trim():'');
+    if(!cmd) return;
+    fetch('/api/lisa/command',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({cmd:cmd})})
+      .then(function(r){return r.json();}).then(function(j){
+        var out=document.getElementById('lisaOut');
+        var hist=j.history||[];
+        out.textContent=hist.map(function(h){return '> '+h.cmd+'\n'+(h.resp||'');}).join('\n\n')||(j.resp||'(geen respons)');
+        out.scrollTop=out.scrollHeight;
+        if(fromInput&&inp) inp.value='';
+      }).catch(function(){});
+  }
+  </script>
+</div>
+
+<!-- IP-REGELS -->
+<div class="bpanel" data-panel="ip">
+  <style>
+  .ip-row{border:1px solid var(--stroke);border-radius:12px;background:#fff;padding:14px;margin-bottom:12px}
+  .ip-row-top{display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap}
+  .ip-row-top .ip-type{max-width:160px;flex:0 0 auto}
+  .ip-row-top .ip-target{flex:1;min-width:180px}
+  .ip-sub{font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--fg3);margin:0 0 6px}
+  .ip-toggles{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px}
+  .ip-empty{color:var(--fg3);padding:8px 0 14px}
+  </style>
+  <div class="beheer-card">
+    <h3>Toegangsregels</h3>
+    <p class="help" style="margin-bottom:14px">Bepaal per <strong>apparaat (IP-adres)</strong> of per <strong>gebruiker</strong> welke pagina's zichtbaar zijn en of er een pincode-slot geldt. Zonder regel gelden de standaardinstellingen. Bij overlap wint de gebruiker-regel. <em>Geldt niet voor admins.</em></p>
+    <form method="post" action="#" onsubmit="return ipSerialize()">
+      <div id="ipRows"></div>
+      <datalist id="userDatalist"></datalist>
+      <div id="ipEmpty" class="ip-empty" style="display:none">Nog geen regels. Voeg er een toe met de knop hieronder.</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
+        <button type="button" class="btn btn-sm btn-inline" onclick="ipAddRow('ip')" style="width:auto"><span class="mi">add</span> Apparaat (IP)</button>
+        <button type="button" class="btn btn-sm btn-inline" onclick="ipAddRow('user')" style="width:auto"><span class="mi">add</span> Gebruiker</button>
+      </div>
+      <hr>
+      <button class="btn btn-primary btn-inline" type="submit" style="min-width:150px"><span class="mi">save</span> Toegangsregels opslaan</button>
+      <textarea name="ip_rules_json" id="ipJson" style="display:none"></textarea>
+      <textarea name="user_rules_json" id="userJson" style="display:none"></textarea>
+    </form>
+    <details style="margin-top:16px">
+      <summary class="help" style="cursor:pointer">Geavanceerd: ruwe JSON bekijken</summary>
+      <div class="help" style="margin-top:8px">Apparaten (IP):</div>
+      <pre class="mono" style="background:#f4f6f1;border:1px solid var(--stroke);border-radius:8px;padding:12px;overflow-x:auto;font-size:12px">{}</pre>
+      <div class="help">Gebruikers:</div>
+      <pre class="mono" style="background:#f4f6f1;border:1px solid var(--stroke);border-radius:8px;padding:12px;overflow-x:auto;font-size:12px">{}</pre>
+    </details>
+  </div>
+
+  <script>
+  const IP_RULES = {};
+  const USER_RULES = {};
+  const USERS_LIST = [{"u": "manager", "n": "Filiaalmanager"}, {"u": "servicebalie", "n": "Servicebalie"}];
+  function ipFillDatalist(){
+    var dl=document.getElementById('userDatalist'); if(!dl) return;
+    dl.innerHTML=USERS_LIST.map(function(x){ return '<option value="'+x.u+'">'+x.n+'</option>'; }).join('');
+  }
+  function ipRowHtml(kind, target, r){
+    r = r || {}; var p = r.pages||{}, l = r.locks||{};
+    function cb(k, on, lbl){ return '<label class="chip"><input type="checkbox" data-k="'+k+'"'+(on?' checked':'')+'> '+lbl+'</label>'; }
+    var isUser = (kind==='user');
+    return '<div class="ip-row" data-kind="'+kind+'">'
+      + '<div class="ip-row-top">'
+      +   '<select class="input ip-type" onchange="ipTypeChanged(this)">'
+      +     '<option value="ip"'+(isUser?'':' selected')+'>Apparaat (IP)</option>'
+      +     '<option value="user"'+(isUser?' selected':'')+'>Gebruiker</option>'
+      +   '</select>'
+      +   '<input class="input ip-target ip-ip" placeholder="IP-adres, bijv. 192.168.1.50" value="'+(isUser?'':(target||''))+'"'+(isUser?' style="display:none"':'')+'>'
+      +   '<input class="input ip-target ip-user" list="userDatalist" placeholder="Typ gebruikersnaam of naam…" value="'+(isUser?(target||''):'')+'"'+(isUser?'':' style="display:none"')+'>'
+      +   '<button type="button" class="btn btn-sm btn-danger" title="Regel verwijderen" style="width:auto" onclick="this.closest(\'.ip-row\').remove();ipCheckEmpty()"><span class="mi">delete</span></button>'
+      + '</div>'
+      + '<div class="ip-sub">Zichtbare pagina\'s</div>'
+      + '<div class="ip-toggles">'
+      +   cb('vol', p.volume!==false, 'Volume') + cb('pre', p.presets!==false, 'Presets') + cb('tts', p.tts!==false, 'Text to Speech')
+      + '</div>'
+      + '<div class="ip-sub">Pincode-slot</div>'
+      + '<div class="ip-toggles">'
+      +   cb('lpre', !!l.presets, 'Presets-slot') + cb('ltts', !!l.tts, 'Text to Speech-slot')
+      + '</div>'
+      + '</div>';
+  }
+  function ipTypeChanged(sel){
+    var row=sel.closest('.ip-row');
+    var isUser=sel.value==='user';
+    row.querySelector('.ip-ip').style.display=isUser?'none':'';
+    row.querySelector('.ip-user').style.display=isUser?'':'none';
+  }
+  function ipAddRow(kind, target, r){
+    document.getElementById('ipRows').insertAdjacentHTML('beforeend', ipRowHtml(kind||'ip', target, r));
+    ipCheckEmpty();
+    if(!target){ var rows=document.querySelectorAll('#ipRows .ip-row'); var last=rows[rows.length-1];
+      var f=last.querySelector((kind==='user')?'.ip-user':'.ip-ip'); if(f) f.focus(); }
+  }
+  function ipCheckEmpty(){
+    document.getElementById('ipEmpty').style.display =
+      document.querySelectorAll('#ipRows .ip-row').length ? 'none' : 'block';
+  }
+  function ipSerialize(){
+    var ipObj={}, userObj={};
+    document.querySelectorAll('#ipRows .ip-row').forEach(function(row){
+      var kind=row.querySelector('.ip-type').value;
+      var target=(kind==='user') ? (row.querySelector('.ip-user').value||'').trim()
+                                  : (row.querySelector('.ip-ip').value||'').trim();
+      if(!target) return;
+      function v(k){ var el=row.querySelector('[data-k="'+k+'"]'); return el?el.checked:false; }
+      var rule={pages:{volume:v('vol'),presets:v('pre'),tts:v('tts')},locks:{presets:v('lpre'),tts:v('ltts')}};
+      if(kind==='user') userObj[target]=rule; else ipObj[target]=rule;
+    });
+    document.getElementById('ipJson').value=JSON.stringify(ipObj);
+    document.getElementById('userJson').value=JSON.stringify(userObj);
+    return true;
+  }
+  (function(){
+    ipFillDatalist();
+    Object.keys(IP_RULES||{}).forEach(function(ip){ ipAddRow('ip', ip, IP_RULES[ip]); });
+    Object.keys(USER_RULES||{}).forEach(function(u){ ipAddRow('user', u, USER_RULES[u]); });
+    ipCheckEmpty();
+  })();
+  </script>
+</div>
+
+<!-- WOORDFILTER -->
+<div class="bpanel" data-panel="woorden">
+  <style>
+  .wf-chips{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0 6px;max-height:360px;overflow:auto;border:1px solid var(--stroke-light);border-radius:10px;padding:12px;background:#fafbf8}
+  .wf-search{position:relative;max-width:360px;margin-top:14px}
+  .wf-search input{width:100%;padding:10px 12px 10px 38px;border:1px solid var(--stroke);border-radius:999px;font:inherit;background:#fff}
+  .wf-search input:focus{outline:none;border-color:var(--green-dark)}
+  .wf-search .mi{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--fg3)}
+  .wf-chip{display:inline-flex;align-items:center;gap:6px;background:#fdeceb;color:#c62828;border:1px solid #f1b7b0;border-radius:999px;padding:6px 8px 6px 12px;font-size:14px;font-weight:600}
+  .wf-chip button{border:none;background:rgba(198,40,40,.12);color:#c62828;width:22px;height:22px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;line-height:1;padding:0}
+  .wf-chip button:hover{background:rgba(198,40,40,.22)}
+  .wf-add{display:flex;gap:8px;flex-wrap:wrap;align-items:center;max-width:420px}
+  </style>
+  <div class="beheer-card">
+    <h3>Woordfilter</h3>
+    <p class="help" style="margin-bottom:12px">Deze woorden worden geblokkeerd bij Text to Speech-omroepen: het afspelen/genereren wordt geweigerd en de gebruiker krijgt een melding. Hoofdletter-ongevoelig, op hele woorden.</p>
+    <form method="post" action="#" onsubmit="return wfSerialize()">
+      <div class="wf-add">
+        <input class="input" id="wfInput" placeholder="Woord toevoegen…" onkeydown="if(event.key==='Enter'){event.preventDefault();wfAdd();}">
+        <button type="button" class="btn btn-inline" style="width:auto" onclick="wfAdd()"><span class="mi">add</span> Toevoegen</button>
+      </div>
+      <div class="wf-search"><span class="mi">search</span><input id="wfSearch" placeholder="Zoek een woord…" oninput="wfRender()"></div>
+      <div class="wf-chips" id="wfChips"></div>
+      <div id="wfCount" class="help" style="margin-bottom:12px"></div>
+      <input type="hidden" name="blocked_words_json" id="wfJson">
+      <button class="btn btn-primary btn-inline" type="submit" style="min-width:150px"><span class="mi">save</span> Woordfilter opslaan</button>
+    </form>
+  </div>
+  <script>
+  var WF_WORDS = ["kut", "kutwijf", "kutkop", "kutzak", "kutzooi", "klootzak", "klootviool", "lul", "lulhannes", "lullo", "lulkoek", "eikel", "hoer", "hoerenjong", "hoerenzoon", "stoephoer", "straathoer", "temeier", "sloerie", "snol", "slet", "del", "kanker", "kankerlijer", "kankerhoer", "kankermongool", "kankerzooi", "kankerkop", "kankerhond", "kankeren", "tering", "teringlijer", "teringhoer", "teringzooi", "tyfus", "tyfuslijer", "tyfushoer", "tyfuszooi", "pleuris", "pleuriszooi", "godverdomme", "verdomme", "gvd", "godskolere", "klerelijer", "klerezooi", "klerezut", "kolere", "sodemieter", "mieter", "flikker", "mietje", "debiel", "imbeciel", "mongool", "mongolen", "spast", "spasticus", "achterlijk", "idioot", "randdebiel", "trut", "kreng", "rotzak", "rotkop", "schoft", "hufter", "smeerlap", "viezerik", "gluiperd", "etterbak", "etter", "sufferd", "mafkees", "uitschot", "tuig", "schorem", "schijt", "schijtlijer", "neuken", "neuk", "optyfen", "shit", "fuck", "fucking", "fucker", "motherfucker", "bitch", "asshole", "bastard", "dickhead"];
+  function wfRender(){
+    var c=document.getElementById('wfChips'); c.innerHTML='';
+    var q=((document.getElementById('wfSearch')||{}).value||'').toLowerCase().trim();
+    var shown=0;
+    WF_WORDS.slice().sort().forEach(function(w){
+      if(q && (''+w).toLowerCase().indexOf(q)<0) return;
+      shown++;
+      var el=document.createElement('span'); el.className='wf-chip';
+      el.appendChild(document.createTextNode(w));
+      var b=document.createElement('button'); b.type='button'; b.title='Verwijderen'; b.textContent='×';
+      b.onclick=function(){ var i=WF_WORDS.indexOf(w); if(i>=0)WF_WORDS.splice(i,1); wfRender(); };
+      el.appendChild(b); c.appendChild(el);
+    });
+    document.getElementById('wfCount').textContent = q ? (shown+' van '+WF_WORDS.length+' woorden') : (WF_WORDS.length+' woorden');
+  }
+  function wfAdd(){
+    var inp=document.getElementById('wfInput');
+    var v=(inp.value||'').trim().toLowerCase();
+    if(v && WF_WORDS.indexOf(v)<0){ WF_WORDS.push(v); wfRender(); }
+    inp.value=''; inp.focus();
+  }
+  function wfSerialize(){ document.getElementById('wfJson').value=JSON.stringify(WF_WORDS); return true; }
+  wfRender();
+  </script>
+</div>
+
+<!-- SNEL INVOEGEN -->
+<div class="bpanel" data-panel="snel">
+  <style>
+  .sw-chips{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0 16px}
+  .sw-chip{display:inline-flex;align-items:center;gap:6px;background:#eaf4d8;color:#4b7a12;border:1px solid #cbe3a0;border-radius:999px;padding:6px 8px 6px 12px;font-size:14px;font-weight:600}
+  .sw-chip button{border:none;background:rgba(75,122,18,.14);color:#4b7a12;width:22px;height:22px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;line-height:1;padding:0}
+  .sw-chip button:hover{background:rgba(75,122,18,.26)}
+  </style>
+  <div class="beheer-card">
+    <h3>Snel invoegen (Text to Speech)</h3>
+    <p class="help" style="margin-bottom:14px">Deze knoppen verschijnen op de Text to Speech-pagina om veelgebruikte woorden met één tik in te voegen.</p>
+    <form method="post" action="#" onsubmit="return swSerialize()">
+      <div class="label">Standaard begintekst</div>
+      <input class="input" name="tts_prefill" value="Attentie, " placeholder="bijv. Attentie, " style="max-width:360px;margin-bottom:4px">
+      <div class="help" style="margin-bottom:16px">Staat automatisch al in het tekstvak. Laat leeg voor een leeg vak.</div>
+      <div class="label">Snelknoppen</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;max-width:420px">
+        <input class="input" id="swInput" placeholder="Woord toevoegen…" onkeydown="if(event.key==='Enter'){event.preventDefault();swAdd();}">
+        <button type="button" class="btn btn-inline" style="width:auto" onclick="swAdd()"><span class="mi">add</span> Toevoegen</button>
+      </div>
+      <div class="sw-chips" id="swChips"></div>
+      <input type="hidden" name="quick_words_json" id="swJson">
+      <button class="btn btn-primary btn-inline" type="submit" style="min-width:150px"><span class="mi">save</span> Snelknoppen opslaan</button>
+    </form>
+  </div>
+  <script>
+  var SW_WORDS = ["Attentie", "servicebalie", "slijterij", "kassa", "emballage"];
+  function swRender(){
+    var c=document.getElementById('swChips'); c.innerHTML='';
+    SW_WORDS.forEach(function(w){
+      var el=document.createElement('span'); el.className='sw-chip';
+      el.appendChild(document.createTextNode(w));
+      var b=document.createElement('button'); b.type='button'; b.title='Verwijderen'; b.textContent='×';
+      b.onclick=function(){ var i=SW_WORDS.indexOf(w); if(i>=0)SW_WORDS.splice(i,1); swRender(); };
+      el.appendChild(b); c.appendChild(el);
+    });
+  }
+  function swAdd(){
+    var inp=document.getElementById('swInput'); var v=(inp.value||'').trim();
+    var lc=SW_WORDS.map(function(x){return (''+x).toLowerCase();});
+    if(v && lc.indexOf(v.toLowerCase())<0){ SW_WORDS.push(v); swRender(); }
+    inp.value=''; inp.focus();
+  }
+  function swSerialize(){ document.getElementById('swJson').value=JSON.stringify(SW_WORDS); return true; }
+  swRender();
+  </script>
+</div>
+
+<!-- SCHEMA'S -->
+<div class="bpanel" data-panel="schema">
+  <style>
+  .am-top{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+  .am-list{display:flex;flex-direction:column;gap:10px}
+  .am-row{display:flex;align-items:center;gap:14px;background:#fff;border:1px solid var(--stroke);border-radius:14px;box-shadow:var(--shadow-sm);padding:14px 16px}
+  .am-row.off{opacity:.6}
+  .am-ic{width:40px;height:40px;border-radius:10px;background:var(--accent-soft);color:var(--green-dark);display:flex;align-items:center;justify-content:center;flex:0 0 auto}
+  .am-ic .mi{font-size:22px}
+  .am-info{flex:1;min-width:0}
+  .am-name{font-weight:800;color:var(--green-dark);font-size:15px}
+  .am-sub{font-size:12px;color:var(--fg3);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .am-acts{display:flex;align-items:center;gap:6px;flex:0 0 auto}
+  .am-sw{position:relative;width:44px;height:26px;flex:0 0 auto;cursor:pointer}
+  .am-sw input{opacity:0;width:0;height:0;position:absolute}
+  .am-sw .tr{position:absolute;inset:0;background:#c9cec2;border-radius:999px;transition:.15s}
+  .am-sw .kn{position:absolute;top:3px;left:3px;width:20px;height:20px;background:#fff;border-radius:50%;transition:.15s;box-shadow:0 1px 3px rgba(0,0,0,.3)}
+  .am-sw input:checked + .tr{background:var(--red)}
+  .am-sw input:checked + .tr + .kn{transform:translateX(18px)}
+  .am-iconbtn{width:38px;height:38px;border-radius:10px;border:1px solid var(--stroke);background:#fff;color:var(--fg2);cursor:pointer;display:flex;align-items:center;justify-content:center}
+  .am-iconbtn:hover{background:var(--btnh)}
+  .am-iconbtn.danger{color:var(--dangertext);border-color:var(--dangerborder)}
+  .am-empty{color:var(--fg3);padding:24px;text-align:center}
+  .am-sec-h{font-size:18px;font-weight:800;color:var(--green-dark);margin:20px 0 4px}
+  .am-sec-sub{font-size:13px;color:var(--fg3);margin-bottom:10px}
+  .am-erow{display:flex;gap:12px;align-items:flex-start;margin-bottom:10px;background:#fff;border:1px solid var(--stroke);border-radius:12px;padding:12px 14px;box-shadow:var(--shadow-sm)}
+  .am-arow{background:#fff;border:1px solid var(--stroke);border-radius:12px;margin-bottom:10px;box-shadow:var(--shadow-sm);overflow:hidden}
+  .am-arow.open{border-color:var(--red)}
+  .am-arow-head{display:flex;gap:12px;align-items:center;padding:12px 14px;cursor:pointer}
+  .am-arow-head:hover{background:var(--bg-soft)}
+  .am-arow-body{padding:0 14px 14px;display:flex;gap:12px;flex-wrap:wrap;align-items:flex-start;border-top:1px solid var(--stroke-light)}
+  .am-arow-body>*{margin-top:12px}
+  .am-rowic{width:38px;height:38px;border-radius:10px;background:var(--accent-soft);color:var(--green-dark);display:flex;align-items:center;justify-content:center;flex:0 0 auto}
+  .am-rowic .mi{font-size:22px}
+  .am-rowbody{flex:1;min-width:0;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .am-addbtn{border:none;background:var(--red);color:var(--on-primary);border-radius:999px;padding:10px 18px;font-weight:700;font-size:14px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;margin:2px 0 8px}
+  .am-addbtn:hover{background:var(--red-dark)}
+  .am-daychips{display:flex;gap:4px;flex-wrap:wrap}
+  .am-day{padding:5px 9px;border:1px solid var(--stroke);border-radius:999px;font-size:12px;cursor:pointer;background:#fff;color:var(--fg2);user-select:none}
+  .am-day.on{background:var(--accent-soft);border-color:var(--red);color:var(--green-dark);font-weight:700}
+  .am-afields{display:flex;gap:8px;flex-wrap:wrap;align-items:center;flex:1;min-width:0}
+  .am-mb .modal{max-width:640px}
+  .am-picker{flex:1;min-width:240px}
+  .am-search{margin-bottom:6px}
+  .am-checklist{max-height:170px;overflow:auto;border:1px solid var(--stroke);border-radius:8px;background:#fff;padding:4px}
+  .am-prow{display:flex;align-items:center;gap:8px;padding:6px 7px;border-radius:6px;cursor:pointer;font-size:13px;color:var(--fg2)}
+  .am-prow:hover{background:var(--bg-soft)}
+  .am-prow input{width:18px;height:18px;flex:0 0 auto;accent-color:var(--red)}
+  .am-order{margin-top:8px}
+  .am-chip{display:flex;align-items:center;justify-content:space-between;gap:8px;background:var(--accent-soft);color:var(--green-dark);border-radius:8px;padding:7px 12px;font-size:13px;font-weight:700;margin:0 0 5px 0;width:100%}
+  .am-chip .x{cursor:pointer;font-weight:800;color:var(--dangertext);font-size:16px;flex:0 0 auto}
+  .am-picktype{display:flex;align-items:center;gap:12px;padding:12px;border:1px solid var(--stroke);border-radius:12px;margin-bottom:8px;cursor:pointer;background:#fff}
+  .am-picktype:hover{background:var(--bg-soft);border-color:var(--red)}
+  </style>
+  <div class="am-top">
+    <div><h1 style="margin:0">Automatiseringen</h1><div class="help">Triggers op tijd/dag &rarr; acties (presets, RCA, volume, kanaal, TTS). Vervangt HA-automatiseringen.</div></div>
+    <button class="btn btn-primary btn-inline" style="width:auto;flex:0 0 auto" onclick="amNew()"><span class="mi">add</span> Nieuwe automatisering</button>
+  </div>
+  <div class="am-list" id="amList"><div class="am-empty">Laden&hellip;</div></div>
+</div>
+
+<!-- Editor-modal voor automatiseringen -->
+<div id="amModal" class="modal-backdrop am-mb" onclick="if(event.target===this)amClose()">
+  <div class="modal">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <h3 style="margin:0" id="amTitle">Automatisering</h3>
+      <button class="btn btn-inline btn-sm" style="width:auto;padding:6px 12px" onclick="amClose()"><span class="mi">close</span></button>
+    </div>
+    <div class="label">Naam</div>
+    <input class="input" id="amName" placeholder="bijv. Avond omroep sluit" style="margin-bottom:8px">
+    <div class="am-sec-h">Wanneer</div>
+    <div class="am-sec-sub">Op welke tijd(en)/dag(en) &mdash; of via een webhook &mdash; moet deze automatisering starten.</div>
+    <div id="amTriggers"></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="am-addbtn" onclick="amAddTrigger()"><span class="mi">schedule</span> Tijd-trigger</button>
+      <button class="am-addbtn" onclick="amAddWebhookTrigger()"><span class="mi">webhook</span> Webhook-trigger</button>
+    </div>
+    <div class="am-sec-h">Voorwaarden <span class="help" style="font-weight:400">(optioneel)</span></div>
+    <div class="am-sec-sub">De acties draaien alleen als <select id="amCondMode" class="input" style="width:auto;display:inline-block;padding:2px 8px;min-height:auto" onchange="_amEdit.condition_mode=this.value"><option value="all">alle</option><option value="any">&eacute;&eacute;n</option></select> van deze voorwaarden klopt.</div>
+    <div id="amConditions"></div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap">
+      <button class="am-addbtn" onclick="amAddCond('rca')"><span class="mi">cable</span> RCA</button>
+      <button class="am-addbtn" onclick="amAddCond('spotify')"><span class="mi">music_note</span> Spotify</button>
+      <button class="am-addbtn" onclick="amAddCond('time_between')"><span class="mi">schedule</span> Tussen tijden</button>
+      <button class="am-addbtn" onclick="amAddCond('day')"><span class="mi">event</span> Dag</button>
+    </div>
+    <div class="am-sec-h">Doe dan</div>
+    <div class="am-sec-sub">De acties worden in deze volgorde uitgevoerd.</div>
+    <div id="amActions"></div>
+    <button class="am-addbtn" onclick="amOpenPick()"><span class="mi">add</span> Actie toevoegen</button>
+    <hr>
+    <label class="switch-row" style="margin-bottom:12px"><input type="checkbox" id="amEnabled" checked> <span>Ingeschakeld</span></label>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-primary btn-inline" style="width:auto" onclick="amSave()"><span class="mi">save</span> Opslaan</button>
+      <button class="btn btn-inline" style="width:auto" onclick="amClose()">Annuleren</button>
+    </div>
+  </div>
+</div>
+
+<!-- Actietype-kiezer (zoals HA 'Actie toevoegen') -->
+<div id="amPick" class="modal-backdrop am-mb" style="z-index:10001" onclick="if(event.target===this)amClosePick()">
+  <div class="modal" style="max-width:520px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <h3 style="margin:0">Actie toevoegen</h3>
+      <button class="btn btn-inline btn-sm" style="width:auto;padding:6px 12px" onclick="amClosePick()"><span class="mi">close</span></button>
+    </div>
+    <input class="input am-search" id="amPickQ" placeholder="Zoeken&hellip;" oninput="amPickFilter(this.value)" style="margin-bottom:10px">
+    <div id="amPickList"></div>
+  </div>
+</div>
+
+<script>
+var AM_PRESETS = [{"id": 2, "name": "Personeelsoproep – Slijterij"}, {"id": 3, "name": "Personeelsoproep – Emballage"}, {"id": 4, "name": "Personeelsoproep – Winkelwagens"}, {"id": 5, "name": "Personeelsoproep – Kassa"}, {"id": 6, "name": "Personeelsoproep – Broodafdeling"}];
+var AM_DAYS = [['Mon','Ma'],['Tue','Di'],['Wed','Wo'],['Thu','Do'],['Fri','Vr'],['Sat','Za'],['Sun','Zo']];
+var _amEdit = null;   // automation in bewerking
+var _amOpenAction = null;   // welke actie-regel is uitgeklapt (accordion)
+function amEsc(s){ return (s||'').replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+function amPresetName(id){ var p=AM_PRESETS.find(function(x){return x.id==id;}); return p?(p.id+'. '+p.name):('Preset '+id); }
+function amDaysShort(days){
+  if(!days||!days.length) return 'elke dag';
+  return AM_DAYS.filter(function(d){return days.indexOf(d[0])>=0;}).map(function(d){return d[1];}).join(' ');
+}
+function amTrigSummary(a){
+  var s=(a.triggers||[]).map(function(t){ return t.type==='webhook'?'webhook':(t.time+' ('+amDaysShort(t.days)+')'); }).join(' · ')||'geen trigger';
+  var nc=(a.conditions||[]).length; if(nc) s+=' · '+nc+' voorwaarde'+(nc>1?'n':'');
+  return s;
+}
+function amActSummary(a){
+  return (a.actions||[]).map(function(ac){
+    if(ac.type==='preset_sequence') return 'Preset '+(ac.presets||[]).join('→');
+    if(ac.type==='rca') return 'RCA '+(ac.state==='off'?'uit':'aan');
+    if(ac.type==='rca_auto') return 'RCA-automatiek '+(ac.state==='off'?'uit':'aan');
+    if(ac.type==='volume') return 'Volume '+ac.value+'%';
+    if(ac.type==='channel') return 'Kanaal '+(ac.channel==2?'Plus Easy':'Plus Main');
+    if(ac.type==='tts') return 'TTS';
+    if(ac.type==='spotify') return 'Spotify: '+(ac.command||'');
+    if(ac.type==='webhook') return 'Webhook';
+    if(ac.type==='wait') return 'Wacht '+ac.seconds+'s';
+    return ac.type;
+  }).join(' · ')||'geen acties';
+}
+function amAgo(ts){ if(!ts) return 'nooit'; var d=new Date(ts*1000); return d.toLocaleDateString('nl-NL',{day:'numeric',month:'short'})+' '+('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2); }
+function amLoad(){
+  fetch("/api/automations",{cache:'no-store'}).then(function(r){return r.json();}).then(function(j){
+    var list=j.automations||[]; var el=document.getElementById('amList');
+    if(!list.length){ el.innerHTML='<div class="am-empty">Nog geen automatiseringen. Klik op &laquo;Nieuwe automatisering&raquo;.</div>'; return; }
+    el.innerHTML=list.map(function(a){
+      return '<div class="am-row'+(a.enabled?'':' off')+'">'+
+        '<div class="am-ic"><span class="mi">bolt</span></div>'+
+        '<div class="am-info"><div class="am-name">'+amEsc(a.name)+'</div>'+
+        '<div class="am-sub">'+amEsc(amTrigSummary(a))+' &nbsp;•&nbsp; '+amEsc(amActSummary(a))+'</div>'+
+        '<div class="am-sub" style="color:var(--fg3)">Laatst: '+amAgo(a.last_run)+'</div></div>'+
+        '<div class="am-acts">'+
+          '<label class="am-sw" title="Aan/uit"><input type="checkbox" '+(a.enabled?'checked':'')+' onchange="amToggle('+a.id+')"><span class="tr"></span><span class="kn"></span></label>'+
+          '<button class="am-iconbtn" title="Nu testen" onclick="amTest('+a.id+')"><span class="mi">play_arrow</span></button>'+
+          '<button class="am-iconbtn" title="Bewerken" onclick="amEditId('+a.id+')"><span class="mi">edit</span></button>'+
+          '<button class="am-iconbtn danger" title="Verwijderen" onclick="amDel('+a.id+')"><span class="mi">delete</span></button>'+
+        '</div></div>';
+    }).join('');
+    window._amCache=list;
+  }).catch(function(){});
+}
+function amToggle(id){ fetch("/admin/automation/toggle/"+id,{method:'POST'}).then(function(){amLoad();}); }
+function amDel(id){ if(!confirm('Automatisering verwijderen?'))return; fetch("/admin/automation/delete/"+id,{method:'POST'}).then(function(){amLoad();}); }
+function amTest(id){ fetch("/admin/automation/run/"+id,{method:'POST'}).then(function(){}); }
+function amClose(){ document.getElementById('amModal').style.display='none'; }
+function amNew(){ _amEdit={id:null,name:'',enabled:true,triggers:[],conditions:[],condition_mode:'all',actions:[]}; amFill(); }
+function amEditId(id){ var a=(window._amCache||[]).find(function(x){return x.id==id;}); if(a){ _amEdit=JSON.parse(JSON.stringify(a)); amFill(); } }
+function amFill(){
+  _amOpenAction=null;   // alles ingeklapt bij openen (compact)
+  document.getElementById('amTitle').textContent=_amEdit.id?'Automatisering bewerken':'Nieuwe automatisering';
+  document.getElementById('amName').value=_amEdit.name||'';
+  document.getElementById('amEnabled').checked=_amEdit.enabled!==false;
+  if(!_amEdit.conditions) _amEdit.conditions=[];
+  if(!_amEdit.condition_mode) _amEdit.condition_mode='all';
+  var cm=document.getElementById('amCondMode'); if(cm) cm.value=_amEdit.condition_mode;
+  amRenderTriggers(); amRenderConditions(); amRenderActions();
+  document.getElementById('amModal').style.display='flex';
+}
+var AM_CTYPES={rca:['cable','PLUS Radio (RCA)'],spotify:['music_note','Spotify'],time_between:['schedule','Tussen tijden'],day:['event','Op dag(en)']};
+function amNewCond(t){
+  if(t==='rca') return {type:t,state:'on'};
+  if(t==='spotify') return {type:t,state:'playing'};
+  if(t==='time_between') return {type:t,after:'21:00',before:'23:59'};
+  if(t==='day') return {type:t,days:['Mon','Tue','Wed','Thu','Fri','Sat']};
+  return {type:t};
+}
+function amAddCond(t){ _amEdit.conditions.push(amNewCond(t)); amRenderConditions(); }
+function amCondFields(c,i){
+  if(c.type==='rca') return '<select class="input" style="max-width:150px" onchange="_amEdit.conditions['+i+'].state=this.value"><option value="on" '+(c.state!=='off'?'selected':'')+'>staat AAN</option><option value="off" '+(c.state==='off'?'selected':'')+'>staat UIT</option></select>';
+  if(c.type==='spotify') return '<select class="input" style="max-width:150px" onchange="_amEdit.conditions['+i+'].state=this.value"><option value="playing" '+(c.state!=='stopped'?'selected':'')+'>speelt</option><option value="stopped" '+(c.state==='stopped'?'selected':'')+'>speelt niet</option></select>';
+  if(c.type==='time_between') return '<span class="help">tussen</span> <input class="input" type="time" style="max-width:115px" value="'+(c.after||'')+'" onchange="_amEdit.conditions['+i+'].after=this.value"> <span class="help">en</span> <input class="input" type="time" style="max-width:115px" value="'+(c.before||'')+'" onchange="_amEdit.conditions['+i+'].before=this.value">';
+  if(c.type==='day') return '<div class="am-daychips" data-ci="'+i+'">'+amDayChips(c.days||[])+'</div>';
+  return '';
+}
+function amRenderConditions(){
+  var w=document.getElementById('amConditions'); if(!w) return;
+  w.innerHTML=(_amEdit.conditions||[]).map(function(c,i){
+    var t=AM_CTYPES[c.type]||['rule',c.type];
+    return '<div class="am-erow"><div class="am-rowic"><span class="mi">'+t[0]+'</span></div><div class="am-rowbody" style="align-items:center;flex-wrap:wrap;gap:6px">'+
+      '<span style="font-weight:700;color:var(--green-dark);margin-right:2px">'+t[1]+'</span>'+amCondFields(c,i)+
+      '</div><button class="am-iconbtn danger" onclick="_amEdit.conditions.splice('+i+',1);amRenderConditions()"><span class="mi">close</span></button></div>';
+  }).join('');
+  w.querySelectorAll('.am-daychips').forEach(function(box){
+    var ci=+box.dataset.ci;
+    box.querySelectorAll('.am-day').forEach(function(ch){
+      ch.onclick=function(){ var d=ch.dataset.d; var arr=_amEdit.conditions[ci].days=_amEdit.conditions[ci].days||[];
+        var k=arr.indexOf(d); if(k>=0)arr.splice(k,1); else arr.push(d); ch.classList.toggle('on'); };
+    });
+  });
+}
+function amDayChips(days, cb){
+  return AM_DAYS.map(function(d){
+    return '<span class="am-day'+(days.indexOf(d[0])>=0?' on':'')+'" data-d="'+d[0]+'">'+d[1]+'</span>';
+  }).join('');
+}
+function amRenderTriggers(){
+  var w=document.getElementById('amTriggers');
+  w.innerHTML=(_amEdit.triggers||[]).map(function(t,i){
+    if(t.type==='webhook'){
+      var inner=t.token
+        ? '<code style="font-size:11px;background:var(--btnh);padding:4px 8px;border-radius:6px;word-break:break-all">'+location.origin+'/hook/automation/'+t.token+'</code><button class="am-addbtn" onclick="amCopyHook('+i+')"><span class="mi">content_copy</span> Kopieer</button>'
+        : '<span class="help">De webhook-URL verschijnt zodra je opslaat.</span>';
+      return '<div class="am-erow"><div class="am-rowic"><span class="mi">webhook</span></div><div class="am-rowbody" style="align-items:center;flex-wrap:wrap;gap:6px">'+inner+
+        '</div><button class="am-iconbtn danger" onclick="_amEdit.triggers.splice('+i+',1);amRenderTriggers()"><span class="mi">close</span></button></div>';
+    }
+    return '<div class="am-erow"><div class="am-rowic"><span class="mi">schedule</span></div><div class="am-rowbody">'+
+      '<input class="input" type="time" style="max-width:120px" value="'+(t.time||'')+'" onchange="_amEdit.triggers['+i+'].time=this.value">'+
+      '<div class="am-daychips" data-ti="'+i+'">'+amDayChips(t.days||[])+'</div>'+
+      '</div><button class="am-iconbtn danger" onclick="_amEdit.triggers.splice('+i+',1);amRenderTriggers()"><span class="mi">close</span></button></div>';
+  }).join('');
+  w.querySelectorAll('.am-daychips').forEach(function(box){
+    var ti=+box.dataset.ti;
+    box.querySelectorAll('.am-day').forEach(function(ch){
+      ch.onclick=function(){ var d=ch.dataset.d; var arr=_amEdit.triggers[ti].days=_amEdit.triggers[ti].days||[];
+        var k=arr.indexOf(d); if(k>=0)arr.splice(k,1); else arr.push(d); ch.classList.toggle('on'); };
+    });
+  });
+}
+function amCopyHook(i){ var t=_amEdit.triggers[i]; if(!t||!t.token)return; navigator.clipboard.writeText(location.origin+'/hook/automation/'+t.token).then(function(){alert('Webhook-URL gekopieerd');}).catch(function(){}); }
+function amAddTrigger(){ _amEdit.triggers.push({time:'12:00',days:['Mon','Tue','Wed','Thu','Fri','Sat']}); amRenderTriggers(); }
+function amAddWebhookTrigger(){ _amEdit.triggers.push({type:'webhook',token:''}); amRenderTriggers(); }
+var AM_ATYPES=[
+  ['preset_sequence','Preset(s) afspelen','queue_music','Speel één of meer presets in volgorde af (intro vóór de eerste, outro ná de laatste).'],
+  ['rca','PLUS Radio aan/uit','cable','Zet de winkelmuziek (RCA) aan of uit.'],
+  ['rca_auto','RCA-automatiek aan/uit','sync','Zet "RCA wijkt automatisch voor Spotify" aan of uit. UIT houdt RCA uit bij een gesloten winkel.'],
+  ['volume','Volume zetten','volume_up','Zet het PLUS Radio-volume op een vaste waarde.'],
+  ['channel','Kanaal wisselen','radio','Wissel tussen Plus Main en Plus Easy.'],
+  ['tts','TTS uitspreken','record_voice_over','Laat een tekst omroepen (tekst-naar-spraak).'],
+  ['spotify','Spotify bedienen','play_circle','Pauzeer/hervat, volgende/vorige, stop of zet het Spotify-volume.'],
+  ['webhook','Webhook aanroepen','webhook','Roep een externe URL aan (bijv. Home Assistant).'],
+  ['wait','Wachten','timer','Pauzeer een aantal seconden voor de volgende actie.']
+];
+function amAT(t){ return AM_ATYPES.find(function(x){return x[0]===t;})||['','','bolt','']; }
+function amNewAction(t){
+  if(t==='preset_sequence') return {type:t,presets:[],intro:true,outro:true};
+  if(t==='rca') return {type:t,state:'on'};
+  if(t==='rca_auto') return {type:t,state:'off'};
+  if(t==='volume') return {type:t,value:65};
+  if(t==='channel') return {type:t,channel:1};
+  if(t==='tts') return {type:t,text:'',gain:100,intro:true,outro:false};
+  if(t==='spotify') return {type:t,command:'pause',value:50};
+  if(t==='webhook') return {type:t,url:'',method:'POST',body:''};
+  if(t==='wait') return {type:t,seconds:5};
+  return {type:t};
+}
+// Actietype-kiezer (zoals HA)
+function amOpenPick(){ amPickRender(''); document.getElementById('amPick').style.display='flex'; var q=document.getElementById('amPickQ'); if(q){q.value='';q.focus();} }
+function amClosePick(){ document.getElementById('amPick').style.display='none'; }
+function amPickRender(f){
+  f=(f||'').toLowerCase().trim();
+  document.getElementById('amPickList').innerHTML=AM_ATYPES.filter(function(t){
+    return !f || t[1].toLowerCase().indexOf(f)>=0 || t[3].toLowerCase().indexOf(f)>=0;
+  }).map(function(t){
+    return '<div class="am-picktype" onclick="amPickChoose(\''+t[0]+'\')"><div class="am-rowic"><span class="mi">'+t[2]+'</span></div>'+
+      '<div style="min-width:0"><div style="font-weight:700;color:var(--green-dark)">'+t[1]+'</div><div class="help">'+t[3]+'</div></div></div>';
+  }).join('')||'<div class="help" style="padding:10px">Geen resultaten.</div>';
+}
+function amPickFilter(v){ amPickRender(v); }
+function amPickChoose(t){ _amEdit.actions.push(amNewAction(t)); _amOpenAction=_amEdit.actions.length-1; amClosePick(); amRenderActions(); }
+function amPresetOrderHtml(i){
+  var ids=(_amEdit.actions[i].presets||[]);
+  if(!ids.length) return '<span class="help">Nog geen preset gekozen &mdash; vink hierboven aan. De <b>volgorde</b> is de aanvinkvolgorde.</span>';
+  return '<div class="help" style="margin-bottom:4px">Speelt in deze volgorde:</div>'+ids.map(function(id,k){
+    return '<span class="am-chip">'+(k+1)+'. '+amEsc(amPresetName(id))+'<span class="x" onclick="amPresetToggle('+i+','+id+',false)">&times;</span></span>';
+  }).join('');
+}
+function amPresetToggle(i,id,on){
+  var arr=_amEdit.actions[i].presets=_amEdit.actions[i].presets||[];
+  var k=arr.indexOf(id);
+  if(on && k<0) arr.push(id);
+  if(!on && k>=0) arr.splice(k,1);
+  var ord=document.getElementById('amord'+i); if(ord) ord.innerHTML=amPresetOrderHtml(i);
+  var list=document.getElementById('amlist'+i);
+  if(list){ var cb=list.querySelector('.am-prow[data-id="'+id+'"] input'); if(cb) cb.checked=arr.indexOf(id)>=0; }
+}
+function amPresetFilter(i,q){
+  q=(q||'').toLowerCase().trim();
+  var list=document.getElementById('amlist'+i); if(!list) return;
+  list.querySelectorAll('.am-prow').forEach(function(r){
+    var hit=!q || r.dataset.name.indexOf(q)>=0 || r.dataset.id.indexOf(q)===0;
+    r.style.display=hit?'':'none';
+  });
+}
+function amActFields(ac,i){
+  if(ac.type==='preset_sequence'){
+    var rows=AM_PRESETS.map(function(p){
+      var on=(ac.presets||[]).indexOf(p.id)>=0;
+      return '<label class="am-prow" data-id="'+p.id+'" data-name="'+amEsc((p.name||'').toLowerCase())+'"><input type="checkbox" '+(on?'checked':'')+' onchange="amPresetToggle('+i+','+p.id+',this.checked)"><span>'+amEsc(p.id+'. '+p.name)+'</span></label>';
+    }).join('');
+    return '<div class="am-picker">'+
+        '<input class="input am-search" placeholder="Zoek preset op naam of nummer&hellip;" oninput="amPresetFilter('+i+',this.value)">'+
+        '<div class="am-checklist" id="amlist'+i+'">'+rows+'</div>'+
+        '<div class="am-order" id="amord'+i+'">'+amPresetOrderHtml(i)+'</div>'+
+      '</div>'+
+      '<div style="display:flex;flex-direction:column;gap:2px">'+
+        '<label class="switch-row" style="min-height:auto"><input type="checkbox" '+(ac.intro!==false?'checked':'')+' onchange="_amEdit.actions['+i+'].intro=this.checked"> <span>intro</span></label>'+
+        '<label class="switch-row" style="min-height:auto"><input type="checkbox" '+(ac.outro!==false?'checked':'')+' onchange="_amEdit.actions['+i+'].outro=this.checked"> <span>outro</span></label>'+
+      '</div>';
+  }
+  if(ac.type==='rca') return '<select class="input" style="max-width:130px" onchange="_amEdit.actions['+i+'].state=this.value"><option value="on" '+(ac.state!=='off'?'selected':'')+'>Aan</option><option value="off" '+(ac.state==='off'?'selected':'')+'>Uit</option></select>';
+  if(ac.type==='rca_auto') return '<select class="input" style="max-width:130px" onchange="_amEdit.actions['+i+'].state=this.value"><option value="on" '+(ac.state!=='off'?'selected':'')+'>Aan</option><option value="off" '+(ac.state==='off'?'selected':'')+'>Uit</option></select>';
+  if(ac.type==='volume') return '<input class="input" type="number" min="0" max="100" style="max-width:110px" value="'+(ac.value!=null?ac.value:65)+'" onchange="_amEdit.actions['+i+'].value=+this.value"><span class="help">%</span>';
+  if(ac.type==='channel') return '<select class="input" style="max-width:160px" onchange="_amEdit.actions['+i+'].channel=+this.value"><option value="1" '+(ac.channel!=2?'selected':'')+'>Plus Main</option><option value="2" '+(ac.channel==2?'selected':'')+'>Plus Easy</option></select>';
+  if(ac.type==='tts') return '<div style="display:flex;flex-direction:column;gap:6px;flex:1;min-width:200px">'+
+    '<input class="input" placeholder="tekst om uit te spreken" value="'+amEsc(ac.text||'')+'" onchange="_amEdit.actions['+i+'].text=this.value">'+
+    '<div style="display:flex;gap:16px">'+
+      '<label class="switch-row" style="min-height:auto"><input type="checkbox" '+(ac.intro!==false?'checked':'')+' onchange="_amEdit.actions['+i+'].intro=this.checked"> <span>intro (bel vooraf)</span></label>'+
+      '<label class="switch-row" style="min-height:auto"><input type="checkbox" '+(ac.outro?'checked':'')+' onchange="_amEdit.actions['+i+'].outro=this.checked"> <span>outro (bel na)</span></label>'+
+    '</div></div>';
+  if(ac.type==='spotify'){
+    var cmds=[['pause','Pauzeren'],['resume','Hervatten'],['playpause','Play/Pauze'],['next','Volgende'],['prev','Vorige'],['stop','Stoppen'],['volume','Volume zetten']];
+    var s='<select class="input" style="max-width:170px" onchange="_amEdit.actions['+i+'].command=this.value;amRenderActions()">'+cmds.map(function(c){return '<option value="'+c[0]+'" '+(ac.command===c[0]?'selected':'')+'>'+c[1]+'</option>';}).join('')+'</select>';
+    if(ac.command==='volume') s+=' <input class="input" type="number" min="0" max="100" style="max-width:100px" value="'+(ac.value!=null?ac.value:50)+'" onchange="_amEdit.actions['+i+'].value=+this.value"><span class="help">%</span>';
+    return s;
+  }
+  if(ac.type==='webhook'){
+    return '<div style="display:flex;flex-direction:column;gap:6px;flex:1;min-width:220px">'+
+      '<input class="input" placeholder="https://… URL" value="'+amEsc(ac.url||'')+'" onchange="_amEdit.actions['+i+'].url=this.value">'+
+      '<div style="display:flex;gap:6px;align-items:center">'+
+        '<select class="input" style="max-width:100px" onchange="_amEdit.actions['+i+'].method=this.value"><option value="POST" '+(ac.method!=='GET'?'selected':'')+'>POST</option><option value="GET" '+(ac.method==='GET'?'selected':'')+'>GET</option></select>'+
+        '<input class="input" style="flex:1" placeholder="body (JSON, optioneel)" value="'+amEsc(ac.body||'')+'" onchange="_amEdit.actions['+i+'].body=this.value">'+
+      '</div></div>';
+  }
+  if(ac.type==='wait') return '<input class="input" type="number" min="0" max="600" style="max-width:110px" value="'+(ac.seconds!=null?ac.seconds:5)+'" onchange="_amEdit.actions['+i+'].seconds=+this.value"><span class="help">sec</span>';
+  return '';
+}
+function amActSummaryOne(ac){
+  if(ac.type==='preset_sequence'){ var p=(ac.presets||[]); return p.length? ('Preset '+p.join(' → ')) : 'nog geen preset gekozen'; }
+  if(ac.type==='rca') return ac.state==='off'?'Uit':'Aan';
+  if(ac.type==='rca_auto') return 'automatiek '+(ac.state==='off'?'uit':'aan');
+  if(ac.type==='volume') return (ac.value!=null?ac.value:65)+'%';
+  if(ac.type==='channel') return ac.channel==2?'Plus Easy':'Plus Main';
+  if(ac.type==='tts'){ var t=(ac.text||'').trim(); return t? (t.length>40?t.slice(0,40)+'…':t) : '(nog geen tekst)'; }
+  if(ac.type==='spotify'){ var m={pause:'Pauzeren',resume:'Hervatten',playpause:'Play/Pauze',next:'Volgende',prev:'Vorige',stop:'Stoppen',volume:'Volume '+(ac.value!=null?ac.value:50)+'%'}; return m[ac.command]||ac.command||''; }
+  if(ac.type==='webhook'){ return ac.url? ((ac.method||'POST')+' '+ac.url.replace('https://','').replace('http://','').slice(0,32)) : '(geen URL)'; }
+  if(ac.type==='wait') return (ac.seconds!=null?ac.seconds:5)+' sec';
+  return '';
+}
+function amToggleAction(i){ _amOpenAction=(_amOpenAction===i?null:i); amRenderActions(); }
+function amRenderActions(){
+  var w=document.getElementById('amActions');
+  w.innerHTML=(_amEdit.actions||[]).map(function(ac,i){
+    var at=amAT(ac.type), open=(_amOpenAction===i);
+    return '<div class="am-arow'+(open?' open':'')+'">'+
+      '<div class="am-arow-head" onclick="amToggleAction('+i+')">'+
+        '<div class="am-rowic"><span class="mi">'+at[2]+'</span></div>'+
+        '<div style="flex:1;min-width:0"><div style="font-weight:700;color:var(--green-dark)">'+at[1]+'</div>'+
+          '<div class="am-sub">'+amEsc(amActSummaryOne(ac))+'</div></div>'+
+        '<span class="mi" style="color:var(--fg3)">'+(open?'expand_less':'expand_more')+'</span>'+
+        '<button class="am-iconbtn danger" onclick="event.stopPropagation();_amEdit.actions.splice('+i+',1);_amOpenAction=null;amRenderActions()"><span class="mi">close</span></button>'+
+      '</div>'+
+      (open?('<div class="am-arow-body">'+amActFields(ac,i)+'</div>'):'')+
+    '</div>';
+  }).join('')||'<div class="help" style="margin-bottom:8px">Nog geen acties &mdash; klik op &laquo;Actie toevoegen&raquo;.</div>';
+}
+function amSave(){
+  _amEdit.name=document.getElementById('amName').value.trim();
+  _amEdit.enabled=document.getElementById('amEnabled').checked;
+  fetch("/admin/automation/save",{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(_amEdit)})
+    .then(function(r){return r.json();}).then(function(j){ if(j.ok){ amClose(); amLoad(); } else alert('Opslaan mislukt'); }).catch(function(){alert('Opslaan mislukt');});
+}
+document.addEventListener('DOMContentLoaded',function(){ if(document.getElementById('amList')) amLoad(); });
+</script>
+
+<script>
+function beheerTab(name){
+  document.querySelectorAll('#beheerTabs .btab').forEach(b=>b.classList.toggle('active',b.dataset.tab===name));
+  document.querySelectorAll('.bpanel').forEach(p=>p.classList.toggle('active',p.dataset.panel===name));
+  var settingsTabs=['algemeen','tts','mededeling'];
+  var save=document.getElementById('beheerSave');
+  if(save) save.style.display = settingsTabs.indexOf(name)>=0 ? 'block' : 'none';
+  try{localStorage.setItem('beheer_tab',name);}catch(_){}
+}
+function addTime(){const w=document.getElementById('timesWrap');const i=document.createElement('input');i.className='input';i.type='time';i.name='times_hm';i.style.marginBottom='6px';w.appendChild(i);}
+(function(){
+  var t='algemeen';
+  try{t=localStorage.getItem('beheer_tab')||'algemeen';}catch(_){}
+  if(!document.querySelector('.btab[data-tab="'+t+'"]'))t='algemeen';
+  beheerTab(t);
+  function toast(id,txt,ok){
+    var el=document.getElementById(id); if(!el) return;
+    el.style.display='block';el.style.color=ok?'#4b7a12':'#c62828';el.textContent=txt;
+    setTimeout(function(){el.style.display='none';},3000);
+  }
+  window.piSaveDuck=function(){
+    const v=parseInt(document.getElementById('piDuckSlider').value);
+    fetch('/api/pi/save_duck',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({duck_level:v})})
+      .then(r=>r.json()).then(j=>toast('duckMsg',j.ok?'Niveau opgeslagen':'Fout',j.ok));
+  };
+  window.spRestart=function(){
+    toast('spRestartMsg','Herstarten…',true);
+    fetch('/api/pi/restart_raspotify',{method:'POST'}).then(r=>r.json()).then(j=>toast('spRestartMsg',j.ok?'Spotify-speler herstart':'Mislukt',j.ok));
+  };
+  window.spSaveMode=function(){
+    const on=document.getElementById('spCtrlToggle').checked;
+    fetch('/api/pi/spotify/set_mode',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({control:on})})
+      .then(r=>r.json()).then(function(j){toast('spCtrlMsg',j.ok?('Bediening '+(on?'aan':'uit')):'Fout',j.ok);});
+  };
+})();
+</script>
+  </div>
+  <div class="footer"><a href="#" class="ver-link" onclick="openChangelog();return false" title="Bekijk de changelog">v7.8.2</a> &middot; Beheerder (demo) &middot; PLUS Demo Audiosysteem</div>
+</div></div>
+
+<div id="mb" class="modal-backdrop" onclick="mbBackdropClick(event)">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <h3 style="margin:0"><span class="mi">new_releases</span> Changelog</h3>
+      <button class="btn btn-inline btn-sm" onclick="closeModal()" style="width:auto;padding:6px 14px" aria-label="Sluiten"><span class="mi">close</span> Sluiten</button>
+    </div>
+    <div id="modalText" class="md-body"></div>
+  </div>
+</div>
+
+
+<div id="userMenu" class="modal-backdrop" onclick="if(event.target===this)closeUserMenu()">
+  <div class="modal" style="max-width:400px;text-align:center">
+    <div style="display:flex;flex-direction:column;align-items:center;gap:8px;margin-bottom:18px">
+      <div style="width:74px;height:74px;border-radius:50%;background:var(--red);color:#fff;display:flex;align-items:center;justify-content:center;font-size:32px;font-weight:800">B</div>
+      <div style="font-size:18px;font-weight:800;color:var(--green-dark)">Beheerder (demo)</div>
+      
+      <div><span class="rbadge rbadge-admin">admin</span> <span class="sbadge sbadge-local">local</span></div>
+    </div>
+    <a class="btn btn-primary" href="#" style="text-decoration:none"><span class="mi">manage_accounts</span> Profiel bekijken / bewerken</a>
+    <div style="height:8px"></div>
+    <a class="btn" href="login.html" style="text-decoration:none"><span class="mi">logout</span> Uitloggen</a>
+    <div style="margin-top:12px"><button class="btn btn-inline btn-sm" onclick="closeUserMenu()" style="width:auto"><span class="mi">close</span> Sluiten</button></div>
+  </div>
+</div>
+
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js" crossorigin="anonymous"></script>
+<script>
+const IS_ADMIN=true;
+const PRESETS_LOCK=false,PRESETS_SECS=30;
+const TTS_LOCK=false,TTS_SECS=30;
+
+function renderMarkdown(text){
+  if(typeof marked!=='undefined'){
+    marked.setOptions({breaks:true,gfm:true});
+    return marked.parse(text);
+  }
+  return '<pre style="white-space:pre-wrap">'+text.replace(/</g,'&lt;')+'</pre>';
+}
+// ── Confetti: subtiel & realistisch, bij de changelog-popup op een nieuwe versie.
+// Twee lichte golven die onder zwaartekracht vallen en fladderen; bij het sluiten
+// van de popup vallen ze versneld naar beneden en vagen ze weg. Respecteert
+// prefers-reduced-motion. Zelfstandig (canvas, geen library).
+var _confetti=(function(){
+  var canvas,ctx,pieces=[],raf=null,running=false,closing=false,W=0,H=0;
+  function ensure(){
+    if(canvas)return;
+    canvas=document.createElement('canvas');
+    canvas.style.cssText='position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:10000';
+    document.body.appendChild(canvas);ctx=canvas.getContext('2d');resize();
+    window.addEventListener('resize',resize);
+  }
+  function resize(){
+    if(!canvas)return;var dpr=Math.min(window.devicePixelRatio||1,2);
+    W=window.innerWidth;H=window.innerHeight;
+    canvas.width=W*dpr;canvas.height=H*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);
+  }
+  function palette(){
+    var cs=getComputedStyle(document.documentElement);
+    function v(n,f){var c=(cs.getPropertyValue(n)||'').trim();return c||f;}
+    return [v('--red','#80bd1d'),v('--gold','#227647'),v('--green-dark','#115013'),'#ffd34e','#ffffff','#ff7043'];
+  }
+  function spawn(n){
+    var cols=palette();
+    for(var i=0;i<n;i++){pieces.push({
+      x:Math.random()*W, y:-20-Math.random()*H*0.35,
+      vx:(Math.random()-0.5)*1.2, vy:1.2+Math.random()*1.8,
+      w:5+Math.random()*6, h:8+Math.random()*7,
+      rot:Math.random()*Math.PI*2, vrot:(Math.random()-0.5)*0.2,
+      wob:Math.random()*Math.PI*2, wobs:0.03+Math.random()*0.05,
+      color:cols[(Math.random()*cols.length)|0], opacity:1
+    });}
+  }
+  function step(){
+    ctx.clearRect(0,0,W,H);
+    for(var i=pieces.length-1;i>=0;i--){
+      var p=pieces[i];
+      p.wob+=p.wobs;
+      p.x+=p.vx+Math.sin(p.wob)*0.6;
+      p.vy+=closing?0.55:0.05;
+      if(!closing&&p.vy>3.0)p.vy=3.0;
+      p.y+=p.vy; p.rot+=p.vrot;
+      if(closing)p.opacity-=0.03;
+      if(p.y>H+30||p.opacity<=0){pieces.splice(i,1);continue;}
+      ctx.save();ctx.globalAlpha=Math.max(0,p.opacity);
+      ctx.translate(p.x,p.y);ctx.rotate(p.rot);ctx.fillStyle=p.color;
+      ctx.fillRect(-p.w/2,-p.h/2,p.w,p.h*(0.55+0.45*Math.abs(Math.cos(p.wob))));
+      ctx.restore();
+    }
+    if(pieces.length){raf=requestAnimationFrame(step);}
+    else{running=false;if(raf){cancelAnimationFrame(raf);raf=null;}if(ctx)ctx.clearRect(0,0,W,H);}
+  }
+  return {
+    start:function(){
+      if(window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+      ensure();closing=false;spawn(90);
+      setTimeout(function(){if(running&&!closing)spawn(40);},350);
+      if(!running){running=true;step();}
+    },
+    close:function(){closing=true;}
+  };
+})();
+function closeModal(){document.getElementById('mb').style.display='none'; if(window._confetti)_confetti.close();}
+function mbBackdropClick(e){if(e.target===document.getElementById('mb')) closeModal();}
+function openUserMenu(){var m=document.getElementById('userMenu');if(m)m.style.display='flex';}
+function closeUserMenu(){var m=document.getElementById('userMenu');if(m)m.style.display='none';}
+document.addEventListener('keydown',function(e){if(e.key==='Escape') closeModal();});
+
+function deadlineKey(s){return"omroep_kiosk_v3_"+s;}
+function nowSec(){return Math.floor(Date.now()/1000);}
+function getDeadline(s){try{return parseInt(localStorage.getItem(deadlineKey(s))||"0",10);}catch(_){return 0;}}
+function setDeadline(s,ts){try{localStorage.setItem(deadlineKey(s),String(ts));}catch(_){}}
+function clearDeadline(s){try{localStorage.removeItem(deadlineKey(s));}catch(_){}}
+function ensureLock(section){
+  if(IS_ADMIN){clearDeadline(section);return;}
+  const enabled=(section==="presets")?PRESETS_LOCK:TTS_LOCK;
+  const secs=(section==="presets")?PRESETS_SECS:TTS_SECS;
+  if(!enabled)return;
+  let dl=getDeadline(section);
+  if(!dl){setDeadline(section,nowSec()+secs);dl=getDeadline(section);}
+  const url=section==="presets"?"/locked":"/locked_tts";
+  const tick=()=>{const d=getDeadline(section);if(d&&nowSec()>=d)window.location.replace(url);};
+  tick();setInterval(tick,1000);
+  ["click","touchstart","mousemove","keydown"].forEach(ev=>window.addEventListener(ev,()=>{if(!IS_ADMIN)setDeadline(section,nowSec()+secs);},{passive:true}));
+}
+function toggleNav(){
+  const btn=document.getElementById('hambBtn');
+  const drawer=document.getElementById('navDrawer');
+  if(btn&&drawer){btn.classList.toggle('open');drawer.classList.toggle('open');}
+}
+function maybeShowAnnouncement(){
+  fetch("/api/settings",{cache:'no-store'}).then(r=>r.json()).then(s=>{
+    if(!s.announcement_enabled||!s.announcement_text)return;
+    // Aan de VERSIE gekoppeld: elke nieuwe versie (fix/update) toont de changelog
+    // opnieuw mét confetti. (Voorheen aan announcement_id, dat bleef gelijk.)
+    const key='omroep_ann_seen_'+(s.version||s.announcement_id||1);
+    try{if(localStorage.getItem(key))return;} catch(_){}
+    document.getElementById('modalText').innerHTML=renderMarkdown(s.announcement_text);
+    document.getElementById('mb').style.display='flex';
+    try{localStorage.setItem(key,'1');}catch(_){}
+    if(window._confetti)_confetti.start();   // nieuwe versie → subtiele confetti
+  }).catch(()=>{});
+}
+function openChangelog(){
+  fetch("/api/settings",{cache:'no-store'}).then(r=>r.json()).then(s=>{
+    var txt=s.announcement_text||'_Nog geen changelog beschikbaar._';
+    document.getElementById('modalText').innerHTML=renderMarkdown(txt);
+    document.getElementById('mb').style.display='flex';
+  }).catch(()=>{});
+}
+window.addEventListener('load',maybeShowAnnouncement);
+
+// ── Inactiviteit → terug naar de Muziek-pagina (per gebruiker aan/uit) ──
+// Reset bij elke interactie, dus tijdens gebruik gebeurt er niets. Alleen actief
+// als de gebruiker het aan heeft én we niet al op de Muziek-pagina zijn.
+(function(){
+  var ON=false;
+  var SECS=60;
+  var ONMUSIC=false;
+  if(!ON || ONMUSIC || SECS<10) return;
+  var url="/volume";
+  var t=null, last=0;
+  function reset(){
+    var now=Date.now();
+    if(now-last<400) return;      // lichte throttle voor mousemove
+    last=now;
+    if(t) clearTimeout(t);
+    t=setTimeout(function(){ window.location.href=url; }, SECS*1000);
+  }
+  ['click','touchstart','pointerdown','keydown','scroll','mousemove'].forEach(function(ev){
+    window.addEventListener(ev, reset, {passive:true});
+  });
+  reset();
+})();
+</script>

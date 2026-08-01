@@ -57,7 +57,10 @@
     }catch(e){}
     return J({ok:true});
   };
-  window.EventSource=function(){ return {close:function(){},addEventListener:function(){},onmessage:null,onerror:null}; };
+  var DEMO_STATE={volume:45,muted:false,bg_before:45,rca_running:true,playing:false,plusradio_title:"Midnight Sun",plusradio_channel:1};
+  window.EventSource=function(){ var self=this; self.onmessage=null; self.onerror=null; self.addEventListener=function(){}; self.close=function(){ if(self._t) clearInterval(self._t); };
+    setTimeout(function(){ function emit(){ if(self.onmessage){ try{ self.onmessage({data:JSON.stringify(DEMO_STATE)}); }catch(e){} } } emit(); self._t=setInterval(emit,2000); }, 300);
+    return self; };
 
   function toast(txt){ var t=document.createElement('div'); t.textContent=txt; t.style.cssText='position:fixed;left:50%;top:20px;transform:translateX(-50%);z-index:99999;background:#115013;color:#fff;font:600 14px sans-serif;padding:10px 18px;border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,.3)'; document.body.appendChild(t); setTimeout(function(){t.remove();},1800); }
 

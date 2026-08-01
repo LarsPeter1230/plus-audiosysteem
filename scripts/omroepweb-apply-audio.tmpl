@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+#
+# omroepweb-apply-audio — zet de door de onboarding gegenereerde asound.conf op
+# /etc/asound.conf (met backup) en herlaadt de audio-services. Wordt via sudo
+# (NOPASSWD) aangeroepen door de app tijdens de onboarding.
+#
+set -euo pipefail
+SRC="/tmp/omroepweb-asound.conf"
+[ -f "$SRC" ] || { echo "geen staged asound.conf ($SRC)"; exit 1; }
+if [ -f /etc/asound.conf ]; then
+  cp /etc/asound.conf "/etc/asound.conf.bak_$(date +%Y%m%d_%H%M%S)" || true
+fi
+cp "$SRC" /etc/asound.conf
+systemctl try-restart go-librespot.service 2>/dev/null || true
+systemctl try-restart rca-stream.service  2>/dev/null || true
+echo "asound.conf toegepast"

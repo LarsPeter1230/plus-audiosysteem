@@ -1,0 +1,52 @@
+:root{
+  --g1:#9BE15D; --g2:#00E3AE; --fg:#0e2a1a;
+  --glass: rgba(255,255,255,.18); --stroke: rgba(255,255,255,.28);
+  --btn: rgba(255,255,255,.28); --btnh: rgba(255,255,255,.42);
+  --radius:22px; --shadow: 0 10px 30px rgba(0,0,0,.18);
+}
+*{ box-sizing:border-box; } html,body{height:100%}
+body{
+  margin:0; font-family:ui-sans-serif,-apple-system,Segoe UI,Roboto,Helvetica,Arial;
+  color:var(--fg);
+  background:
+    radial-gradient(1200px 800px at 20% 0%, var(--g1), transparent 60%),
+    radial-gradient(1200px 800px at 100% 100%, var(--g2), transparent 60%),
+    linear-gradient(135deg, #60c06e, #2aa470 62%, #1f9c83);
+}
+.wrapper{min-height:100%;display:flex;align-items:start;justify-content:center;padding:clamp(12px,4vw,48px)}
+.card{ width:min(1020px,94vw); padding:clamp(16px,3.2vw,32px); background:var(--glass); backdrop-filter: blur(16px) saturate(130%); -webkit-backdrop-filter: blur(16px) saturate(130%); border:1px solid var(--stroke); border-radius:var(--radius); box-shadow:var(--shadow) }
+.top{display:flex;align-items:center;gap:10px;justify-content:space-between;margin-bottom:14px}
+.tabs{display:flex;gap:10px;flex-wrap:wrap}
+.tab{display:inline-block;padding:8px 12px;border-radius:999px;border:1px solid var(--stroke);background:var(--btn);text-decoration:none;color:#0c3a26;font-weight:700}
+.tab.active{background:var(--btnh)}
+.right{display:flex;gap:8px}
+.pill{padding:8px 12px;border-radius:999px;border:1px solid var(--stroke);background:var(--btn);text-decoration:none;color:#0c3a26}
+h1{margin:6px 0 16px}
+.row{display:flex;flex-wrap:wrap;gap:16px}
+.col{flex:1 1 320px}
+.btn{display:inline-flex;align-items:center;justify-content:center;width:100%;padding:12px;border-radius:14px;border:1px solid var(--stroke);background:var(--btn);font-weight:700;cursor:pointer;text-decoration:none;color:#0c3a26}
+.btn:hover{background:var(--btnh)}
+.small{font-size:14px;padding:8px 10px;border-radius:10px}
+.badge{display:inline-block;padding:6px 10px;border-radius:999px;border:1px solid var(--stroke);background:rgba(255,255,255,.45);font-weight:700;margin-right:8px}
+.label{font-size:13px;margin-bottom:6px;opacity:.9}
+.input, textarea, select, input[type=time], input[type=number], input[type=file], input[type=text]{
+  width:100%;padding:12px 14px;border-radius:14px;border:1px solid var(--stroke);background:rgba(255,255,255,.50);font-weight:600;color:#0c3a26
+}
+textarea{min-height:140px; resize:vertical}
+.range{ -webkit-appearance:none; appearance:none; width:100%; height:16px; background: rgba(255,255,255,.55); border-radius:999px; border:1px solid var(--stroke) }
+.range::-webkit-slider-thumb{ -webkit-appearance:none; width:26px; height:26px; border-radius:50%; background: radial-gradient(circle at 30% 30%, #a3ffcf, #2fb889 60%, #1d7e5e); box-shadow: 0 6px 14px rgba(0,0,0,.15) }
+.table{width:100%;border-collapse:collapse;background:rgba(255,255,255,.45);border:1px solid var(--stroke);border-radius:14px;overflow:hidden}
+.table th, .table td{padding:12px 14px;border-bottom:1px solid rgba(0,0,0,.06);text-align:left}
+.table th{background:rgba(255,255,255,.35)}
+.card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px}
+.card-item{padding:14px;border-radius:16px;border:1px solid var(--stroke);background:rgba(255,255,255,.45)}
+.help{font-size:14px;opacity:.85}
+hr{border:0;height:1px;background:rgba(0,0,0,.08);margin:18px 0}
+.footer{margin-top:14px; font-size:13px; opacity:.85}
+.pad{display:grid;grid-template-columns:repeat(3,minmax(80px,1fr));gap:12px;max-width:420px;margin:auto}
+.pad .k{padding:18px;border-radius:16px;border:1px solid var(--stroke);background:rgba(255,255,255,.7);font-weight:900;font-size:22px;cursor:pointer;text-align:center}
+.codewin{letter-spacing:10px; font-size:28px; background:rgba(255,255,255,.6); border:1px solid var(--stroke); border-radius:14px; padding:14px; text-align:center; font-weight:900; user-select:none}
+.err{color:#b00020;margin:10px 0;font-weight:700;text-align:center}
+.days{display:flex;flex-wrap:wrap;gap:10px}
+.days label{display:flex;align-items:center;gap:8px;border:1px solid var(--stroke);background:rgba(255,255,255,.5);padding:8px 10px;border-radius:999px}
+@media (max-width:720px){ .col{flex:1 1 100%} }

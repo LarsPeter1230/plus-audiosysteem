@@ -1,0 +1,16 @@
+[Unit]
+Description=Omroepweb / PLUS Audiosysteem (Flask)
+After=network.target sound.target
+
+[Service]
+User=__USER__
+Group=audio
+WorkingDirectory=__APP_DIR__
+Environment=PYTHONUNBUFFERED=1
+EnvironmentFile=__APP_DIR__/omroepweb.env
+ExecStart=__APP_DIR__/venv/bin/python __APP_DIR__/app.py
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

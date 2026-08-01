@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Text to Speech</h1>
+<div class="row">
+  <div class="col">
+    <div class="label">Tekst</div>
+    <textarea class="input" id="ttsText" placeholder="Typ je omroeptekst hier..."></textarea>
+    <div style="height:8px"></div>
+    <div class="row" style="gap:10px">
+      <div class="col">
+        <div class="label">Stem / Model</div>
+        <select class="input" id="ttsVoice">{{ opts|safe }}</select>
+      </div>
+      <div class="col">
+        <div class="label">Snelheid (wpm)</div>
+        <input class="input" type="number" id="ttsRate" min="80" max="240" value="165">
+      </div>
+      <div class="col">
+        <div class="label">TTS Volume (PST %)</div>
+        <input class="input" type="number" id="ttsGain" min="0" max="100" value="80">
+      </div>
+    </div>
+    <div style="height:10px"></div>
+    <button class="btn" onclick="ttsSpeak('{{ url_for('api_tts_say') }}')">Spreek af</button>
+  </div>
+</div>
+{% if lock_enabled and lock_seconds>0 and not admin %}
+<script> setTimeout(()=>{ window.location = "{{ url_for('locked_tts_page') }}"; }, {{ lock_seconds*1000 }}); </script>
+{% endif %}
+{% endblock %}

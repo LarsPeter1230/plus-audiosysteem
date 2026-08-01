@@ -1,0 +1,15 @@
+[Unit]
+Description=go-librespot (Spotify Connect)
+After=network-online.target sound.target
+Wants=network-online.target
+
+[Service]
+User=__USER__
+Group=audio
+WorkingDirectory=__HOME__/go-librespot
+ExecStart=__HOME__/go-librespot/go-librespot
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

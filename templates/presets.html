@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Presets</h1>
+<div class="card-grid">{{ cards|safe }}</div>
+{% if lock_enabled and lock_seconds>0 and not admin %}
+<script> setTimeout(()=>{ window.location = "{{ url_for('locked_page') }}"; }, {{ lock_seconds*1000 }}); </script>
+{% endif %}
+{% endblock %}

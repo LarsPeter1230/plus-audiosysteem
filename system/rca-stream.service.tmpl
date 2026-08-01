@@ -1,0 +1,14 @@
+[Unit]
+Description=RCA line-in naar Icecast2 stream (PLUS Radio)
+After=network.target icecast2.service sound.target
+
+[Service]
+User=__USER__
+# Zet het Icecast source-wachtwoord in omroepweb.env als ICECAST_SOURCE_PW en
+# vervang het hieronder, of pas dit ExecStart aan je eigen Icecast-mount aan.
+ExecStart=/usr/bin/ffmpeg -f alsa -i linein -ac 2 -ar 48000 -filter:a azmq,volume@vol=20.0 -codec:a libmp3lame -b:a 320k -f mp3 -ice_name "PLUS Radio" -ice_description "PLUS Radio winkelmuziek" -ice_genre "Winkelmuziek" icecast://source:__ICECAST_SOURCE_PW__@localhost:8000/rca
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

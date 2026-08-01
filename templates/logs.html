@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Logs</h1>
+<table class="table">
+  <thead><tr><th>Tijd</th><th>Actie</th><th>IP</th></tr></thead>
+  <tbody>{{ rows|safe }}</tbody>
+</table>
+<div style="height:10px"></div>
+<form method="post" action="{{ url_for('clear_logs') }}">
+  <button class="btn small" type="submit">Logs legen</button>
+</form>
+{% endblock %}

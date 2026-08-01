@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+#
+# omroepweb-update — haalt de laatste versie van GitHub en herstart de app.
+# Geïnstalleerd door install.sh naar /usr/local/bin/omroepweb-update.
+#
+set -euo pipefail
+APP_DIR="__APP_DIR__"
+SERVICE="__SERVICE__"
+
+cd "$APP_DIR"
+echo "==> Laatste versie ophalen van GitHub..."
+git fetch --tags --prune origin
+git reset --hard origin/main
+
+echo "==> Dependencies bijwerken..."
+"$APP_DIR/venv/bin/pip" install --quiet --upgrade pip
+"$APP_DIR/venv/bin/pip" install --quiet -r "$APP_DIR/requirements.txt"
+
+echo "==> Service herstarten..."
+sudo systemctl restart "$SERVICE"
+sleep 2
+echo "==> Bijgewerkt naar: $(git describe --tags --always 2>/dev/null || git rev-parse --short HEAD)"
+echo "    Status: $(systemctl is-active "$SERVICE")"

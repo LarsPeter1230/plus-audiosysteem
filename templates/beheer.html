@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Beheer</h1>
+<form method="post" action="{{ url_for('save_settings') }}">
+  <div class="row">
+    <div class="col">
+      <div class="label">Mededeling (popup bij openen)</div>
+      <textarea class="input" name="announcement_text" placeholder="Tekst van de popup">{{ settings.announcement_text }}</textarea>
+      <div style="height:8px"></div>
+      <label style="display:flex;align-items:center;gap:8px">
+        <input type="checkbox" name="announcement_enabled" value="1" {% if settings.announcement_enabled %}checked{% endif %}>
+        Popup aanzetten
+      </label>
+      <div class="help">Per browser 1× tot je tekst wijzigt.</div>
+    </div>
+    <div class="col">
+      <div class="label">Versie</div>
+      <input class="input" type="text" name="version" value="{{ settings.version }}" placeholder="bv. v4.0.0">
+
+      <hr>
+      <div class="label">Pagina’s zichtbaar (niet-admin)</div>
+      <label><input type="checkbox" name="page_volume"  value="1" {% if pages.volume  %}checked{% endif %}> Volume</label><br>
+      <label><input type="checkbox" name="page_presets" value="1" {% if pages.presets %}checked{% endif %}> Presets</label><br>
+      <label><input type="checkbox" name="page_tts"     value="1" {% if pages.tts     %}checked{% endif %}> TTS</label><br>
+
+      <hr>
+      <div class="label">Presets lock</div>
+      <label style="display:flex;align-items:center;gap:8px">
+        <input type="checkbox" name="presets_lock_enabled" value="1" {% if settings.presets_lock_enabled %}checked{% endif %}>
+        Lock aan op /presets
+      </label>
+      <div class="label" style="margin-top:6px">Auto-lock na seconden</div>
+      <input class="input" type="number" min="5" max="3600" name="presets_lock_seconds" value="{{ settings.presets_lock_seconds }}">
+
+      <hr>
+      <div class="label">TTS lock</div>
+      <label style="display:flex;align-items:center;gap:8px">
+        <input type="checkbox" name="tts_lock_enabled" value="1" {% if settings.tts_lock_enabled %}checked{% endif %}>
+        Lock aan op /tts
+      </label>
+      <div class="label" style="margin-top:6px">Auto-lock na seconden</div>
+      <input class="input" type="number" min="5" max="3600" name="tts_lock_seconds" value="{{ settings.tts_lock_seconds }}">
+
+      <hr>
+      <div class="label">TTS-engine</div>
+      <select class="input" name="tts_engine">
+        <option value="piper" {% if settings.tts_engine=='piper' %}selected{% endif %}>Piper (aanbevolen, lokaal)</option>
+        <option value="espeak" {% if settings.tts_engine=='espeak' %}selected{% endif %}>eSpeak (fallback)</option>
+      </select>
+
+      <div class="label" style="margin-top:6px">Piper default model (.onnx in ~/omroepweb/piper; leeg = automatisch)</div>
+      <input class="input" type="text" name="tts_piper_default_model" value="{{ settings.tts_piper_default_model }}">
+
+      <div style="height:10px"></div>
+      <button class="btn" type="submit">Opslaan</button>
+    </div>
+  </div>
+</form>
+
+<hr>
+<h2>Schema’s (automatisch presets afspelen)</h2>
+<table class="table">
+  <thead><tr><th>ID</th><th>Type</th><th>Preset</th><th>Interval</th><th>Dagen</th><th>Start</th><th>Einde</th><th>Tijden</th><th>Actie</th></tr></thead>
+  <tbody>{{ sched_rows|safe }}</tbody>
+</table>
+
+<div class="row">
+  <div class="col">
+    <h3>Nieuw interval-schema</h3>
+    <form method="post" action="{{ url_for('add_schedule_interval') }}">
+      <div class="label">Preset ID</div>
+      <input class="input" type="number" min="1" name="preset_id" required>
+
+      <div class="label">Elke (seconden)</div>
+      <input class="input" type="number" min="5" name="every_sec" required>
+
+      <div class="label">Dagen (vink aan; leeg = alle)</div>
+      {{ day_checks_interval|safe }}
+
+      <div class="label" style="margin-top:8px">Tijdvenster (optioneel)</div>
+      <div class="row" style="gap:10px">
+        <div class="col">
+          <div class="label">Start</div>
+          <input class="input" type="time" name="start_hm">
+        </div>
+        <div class="col">
+          <div class="label">Einde</div>
+          <input class="input" type="time" name="end_hm">
+        </div>
+      </div>
+
+      <div style="height:8px"></div>
+      <button class="btn" type="submit">Toevoegen</button>
+    </form>
+  </div>
+  <div class="col">
+    <h3>Nieuw tijden-schema</h3>
+    <form method="post" action="{{ url_for('add_schedule_attimes') }}" id="timesForm">
+      <div class="label">Preset ID</div>
+      <input class="input" type="number" min="1" name="preset_id" required>
+
+      <div class="label">Tijden</div>
+      <div id="timesWrap">
+        <input class="input" type="time" name="times_hm" required>
+      </div>
+      <div style="height:8px"></div>
+      <button class="btn small" type="button" onclick="addTime()">+ Tijd</button>
+
+      <div style="height:12px"></div>
+      <div class="label">Dagen (vink aan; leeg = alle)</div>
+      {{ day_checks_attimes|safe }}
+
+      <div style="height:8px"></div>
+      <button class="btn" type="submit">Toevoegen</button>
+    </form>
+  </div>
+</div>
+<script>
+function addTime(){
+  const wrap = document.getElementById('timesWrap');
+  const spacer = document.createElement('div'); spacer.style.height='8px'; wrap.appendChild(spacer);
+  const inp = document.createElement('input'); inp.className='input'; inp.type='time'; inp.name='times_hm'; wrap.appendChild(inp);
+}
+</script>
+{% endblock %}

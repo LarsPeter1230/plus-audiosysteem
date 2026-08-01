@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>TTS Vergrendeld</h1>
+<div class="row"><div class="col">
+  <div class="label">Voer toegangscode in</div>
+  <div id="err" class="err" style="display:none">Onjuiste code</div>
+  <div class="codewin" id="codewin">••••</div>
+  <div style="height:12px"></div>
+  <div class="pad">
+    <div class="k" onclick="tap('1')">1</div><div class="k" onclick="tap('2')">2</div><div class="k" onclick="tap('3')">3</div>
+    <div class="k" onclick="tap('4')">4</div><div class="k" onclick="tap('5')">5</div><div class="k" onclick="tap('6')">6</div>
+    <div class="k" onclick="tap('7')">7</div><div class="k" onclick="tap('8')">8</div><div class="k" onclick="tap('9')">9</div>
+    <div class="k" onclick="clr()">Del</div><div class="k" onclick="tap('0')">0</div><div class="k" onclick="enter()">Enter</div>
+  </div>
+</div></div>
+<script>
+bindKeypadUnlock("{{ url_for('unlock_tts') }}","{{ url_for('tts_page') }}");
+</script>
+{% endblock %}

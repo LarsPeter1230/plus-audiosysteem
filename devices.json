@@ -1,0 +1,7 @@
+{
+  "default": {
+    "volume": true,
+    "presets": true,
+    "tts": true
+  }
+}

@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Omroepweb</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
+  <script defer src="{{ url_for('static', filename='app.js') }}"></script>
+</head>
+<body>
+  <div class="wrapper">
+    <div class="card">
+      <div class="top">
+        <div class="tabs">
+          {% if vis.volume %}<a class="tab {{ 'active' if tab=='vol' else '' }}" href="{{ url_for('volume_page') }}">Volume</a>{% endif %}
+          {% if vis.presets %}<a class="tab {{ 'active' if tab=='presets' else '' }}" href="{{ url_for('presets_page') }}">Presets</a>{% endif %}
+          {% if vis.tts %}<a class="tab {{ 'active' if tab=='tts' else '' }}" href="{{ url_for('tts_page') }}">TTS</a>{% endif %}
+          {% if admin %}
+            <a class="tab {{ 'active' if tab=='beheer' else '' }}" href="{{ url_for('beheer_page') }}">Beheer</a>
+            <a class="tab {{ 'active' if tab=='logs' else '' }}" href="{{ url_for('logs_page') }}">Logs</a>
+          {% endif %}
+        </div>
+        <div class="right">
+          {% if admin %}<a class="pill" href="{{ url_for('logout') }}">Admin logout</a>
+          {% else %}<a class="pill" href="{{ url_for('login') }}">Admin login</a>{% endif %}
+        </div>
+      </div>
+
+      {% block content %}{% endblock %}
+
+      <div class="footer">Versie: <span id="appVersion">{{ settings.version or '' }}</span></div>
+    </div>
+  </div>
+</body>
+</html>

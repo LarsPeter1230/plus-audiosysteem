@@ -1,0 +1,34 @@
+# ── Python / venv ──
+venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# ── Oude backups (niet in de repo) ──
+app.py.bak_*
+*.bak
+*.bak_*
+*.corrupted_*
+
+# ── Runtime / tijdelijk ──
+*.pid
+*.log
+*.tmp
+tmp*.wav
+
+# ── Secrets / instance-config (NOOIT committen) ──
+omroepweb.env
+*.env
+secret_key
+spotify_oauth.json
+oidc_config.json
+state.json
+*.secret
+
+# ── go-librespot lokale binaries ──
+go-librespot/
+
+# Interne docs met credentials (lokaal houden)
+app_sso_backup.py
+DOCUMENTATIE.md
+SPOTIFY_VM_MIGRATIE.md

@@ -1,0 +1,20 @@
+# go-librespot op de VM (V7 - Spotify volledig op de VM).
+device_name: "Audiosysteem"
+device_type: avr
+audio_backend: alsa
+audio_device: spot
+mixer_device: default
+mixer_control_name: SPOT
+bitrate: 320
+disable_autoplay: false
+server:
+  enabled: true
+  address: 127.0.0.1
+  port: 3678
+zeroconf_enabled: true
+credentials:
+  type: interactive
+  interactive:
+    callback_port: 36842
+  zeroconf:
+    persist_credentials: false

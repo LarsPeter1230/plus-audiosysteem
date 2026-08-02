@@ -917,18 +917,21 @@ _COMM_SR, _COMM_CH   = 48000, 2
 _COMM_PREROLL_SECS   = 8.0      # zoveel pakken we terug (dekt de ~4-6s Lisa-lag + marge)
 _COMM_RING_SECS      = 16.0
 _COMM_SILENCE_DB     = -35      # onder deze drempel = stilte (voor het bijsnijden)
-_COMM_GAP_SECS       = 0.7      # zó lange stilte = grens (voor/na de commercial)
-_COMM_MIN_SECS       = 3.0      # commercial duurt minstens dit → negeer vroege dipjes
-_COMM_LEAD_WINDOW    = 6.0      # de commercial begint binnen dit venster (pre-roll ~8s − Lisa-lag)
+_COMM_GAP_SECS       = 0.4      # zó lange stilte = grens (transitie muziek↔reclame is vaak maar ~0,5s)
 # Loudnorm alleen op de DOWNLOAD-mp3 (de lijn-in staat erg zacht); het afspelen
 # in de winkel houdt het bronniveau aan (via RCA_GAIN), anders veel te hard.
 _COMM_LOUDNORM_AF    = "loudnorm=I=-16:TP=-1.5:LRA=11"
 
 def _comm_detect_bounds(raw_path):
-    """Vind in de ruwe s16le-opname het begin en einde van de eigenlijke reclame.
-    De opname bevat vóór de spot vaak nog PLUS Radio-muziek + een transitiestilte;
-    de spot is het blok ná die laatste stilte in het aanloop-venster. Erna kan nog
-    stilte/PLUS Radio-muziek staan (Lisa-lag). Geeft (start_sec, end_sec|None)."""
+    """Vind begin/einde van de eigenlijke reclame. De opname bevat vóór (en soms ná)
+    de spot nog PLUS Radio-muziek, gescheiden door korte stiltes. We splitsen op die
+    stiltes en kiezen het LANGSTE geluidssegment als de reclame — die is langer dan de
+    (per dag wisselende) aanloop-/na-muziek, dus dit past zich vanzelf aan elke
+    reclamelengte en -timing aan. Geeft (start_sec, end_sec|None)."""
+    try:
+        dur = os.path.getsize(raw_path) / float(_COMM_SR * _COMM_CH * 2)
+    except Exception:
+        dur = 0.0
     try:
         out = subprocess.run(
             ["ffmpeg", "-hide_banner", "-nostats",
@@ -938,20 +941,28 @@ def _comm_detect_bounds(raw_path):
             capture_output=True, text=True, timeout=30).stderr
     except Exception:
         return 0.0, None
-    starts = [float(x) for x in re.findall(r"silence_start: ([\d.]+)", out)]
+    starts = [float(x) for x in re.findall(r"silence_start: (-?[\d.]+)", out)]
     ends   = [float(x) for x in re.findall(r"silence_end: ([\d.]+)", out)]
-    gaps   = list(zip(starts, ends))             # gepaarde stiltes (laatste losse start valt weg)
-    start = 0.0
-    for gs, ge in gaps:                          # laatste transitiestilte in het aanloop-venster
-        if gs < _COMM_LEAD_WINDOW:
-            start = ge
-        else:
-            break
-    end = None
-    for s in starts:                             # eerste échte stilte ná de spot = einde
-        if s > start + _COMM_MIN_SECS:           # (negeer korte dipjes in de spot)
-            end = s
-            break
+    gaps   = sorted(zip(starts, ends))
+    if not gaps or dur <= 0:
+        return 0.0, None
+    # Geluidssegmenten = het complement van de stiltes.
+    segs, prev = [], 0.0
+    for gs, ge in gaps:
+        gs = max(0.0, gs)
+        if gs > prev + 0.15:
+            segs.append((prev, gs))
+        prev = max(prev, ge)
+    if dur > prev + 0.15:
+        segs.append((prev, dur))
+    if not segs:
+        return 0.0, None
+    start, end = max(segs, key=lambda s: s[1] - s[0])   # langste segment = de reclame
+    start = max(0.0, start - 0.10)                       # klein randje mee
+    if end >= dur - 0.20:
+        end = None                                      # loopt tot het einde → geen na-trim
+    else:
+        end = min(dur, end + 0.10)
     return start, end
 _comm_ring           = collections.deque()
 _comm_ring_lock      = threading.Lock()

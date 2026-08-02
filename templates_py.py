@@ -1045,6 +1045,7 @@ VOLUME_BODY = """
   [data-panel="spotify"] .sp-brandbar .sp-tag b{color:var(--green-dark);font-size:13px}
   /* player → donkere hero met vervaagde albumhoes op de achtergrond */
   [data-panel="spotify"] .sp-player{position:relative;overflow:hidden;background:linear-gradient(165deg,#3a3a40,#161616 72%);border:1px solid rgba(255,255,255,.08);color:#fff;box-shadow:0 16px 40px rgba(0,0,0,.34);margin-top:0;gap:18px}
+  [data-panel="spotify"] .sp-viz{display:block;width:100%;height:52px;position:relative;z-index:1;margin-bottom:2px}
   [data-panel="spotify"] .sp-backdrop{position:absolute;inset:-10%;background-size:cover;background-position:center;filter:blur(42px) saturate(1.6) brightness(.6);opacity:0;transition:opacity .7s ease;z-index:0}
   [data-panel="spotify"] .sp-player:not([data-state="empty"]) .sp-backdrop{opacity:.92}
   [data-panel="spotify"] .sp-player::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,10,10,.28),rgba(10,10,10,.72));z-index:0}
@@ -1161,6 +1162,7 @@ VOLUME_BODY = """
   <div class="sp-explicit" id="spExplicit"><span class="mi">explicit</span><span id="spExplicitTxt">Expliciet nummer — Spotify is gedempt. Sla het over op je telefoon.</span></div>
   <div class="sp-player" id="spPlayer" data-state="empty" data-control="0">
     <div class="sp-backdrop" id="spBackdrop"></div>
+    <canvas class="sp-viz" id="spViz"></canvas>
     <div class="sp-main">
       <div class="sp-cover"><img id="spCover" alt=""><span class="sp-ph mi">music_note</span></div>
       <div class="sp-info">
@@ -1964,6 +1966,8 @@ window.onload=()=>{
     [].forEach.call(document.querySelectorAll('.eqviz'),function(el){ var v={el:el, source:el.dataset.source, which:el.dataset.eq, edit:el.dataset.edit==='1', title:el.dataset.title||'', out:new Array(BARS).fill(0), phase:Math.random()*6}; if(v.source==='rca'){ applyRcaCols(v); } else { v.c1='#0c7a33'; v.c2='#17c257'; v.c3='#4dff8f'; } build(v); vizzes.push(v); });
     var pv=document.getElementById('prViz');
     if(pv){ var pvv={el:pv, canvas:pv, ctx:pv.getContext('2d'), source:'rca', out:new Array(BARS).fill(0)}; applyRcaCols(pvv); vizzes.push(pvv); }
+    var sv=document.getElementById('spViz');
+    if(sv){ vizzes.push({el:sv, canvas:sv, ctx:sv.getContext('2d'), source:'spot', out:new Array(BARS).fill(0), phase:Math.random()*6, c1:'#0c7a33', c2:'#17c257', c3:'#4dff8f'}); }
     // Huisstijl-wissel: rca-kleuren mee laten kleuren
     var bp=window.brandPick; window.brandPick=function(n){ if(bp) try{bp(n);}catch(e){} setTimeout(function(){ vizzes.forEach(function(v){ if(v.source==='rca') applyRcaCols(v); }); },50); };
     if(!vizzes.length) return;

@@ -1957,10 +1957,15 @@ window.onload=()=>{
     }
     requestAnimationFrame(loop);
   }
+  function _shade(hex,amt){ hex=(hex||'').trim().replace('#',''); if(hex.length===3) hex=hex.split('').map(function(c){return c+c;}).join(''); if(hex.length<6) return hex||'#80bd1d'; var r=parseInt(hex.substr(0,2),16),g=parseInt(hex.substr(2,2),16),b=parseInt(hex.substr(4,2),16); function f(x){ return Math.max(0,Math.min(255,Math.round(amt<0? x*(1+amt): x+(255-x)*amt))); } return 'rgb('+f(r)+','+f(g)+','+f(b)+')'; }
+  function brandCols(){ var s=getComputedStyle(document.documentElement); var p=(s.getPropertyValue('--red')||'#80bd1d').trim(); var d=(s.getPropertyValue('--green-dark')||'#115013').trim(); return {c1:_shade(d,-0.15), c2:p, c3:_shade(p,0.45)}; }
+  function applyRcaCols(v){ var c=brandCols(); v.c1=c.c1; v.c2=c.c2; v.c3=c.c3; }
   function initAll(){
-    [].forEach.call(document.querySelectorAll('.eqviz'),function(el){ var v={el:el, source:el.dataset.source, which:el.dataset.eq, edit:el.dataset.edit==='1', title:el.dataset.title||'', out:new Array(BARS).fill(0), phase:Math.random()*6}; if(v.source==='rca'){ v.c1='#7a1717'; v.c2='#e0392c'; v.c3='#ff7a5c'; } else { v.c1='#0c7a33'; v.c2='#17c257'; v.c3='#4dff8f'; } build(v); vizzes.push(v); });
+    [].forEach.call(document.querySelectorAll('.eqviz'),function(el){ var v={el:el, source:el.dataset.source, which:el.dataset.eq, edit:el.dataset.edit==='1', title:el.dataset.title||'', out:new Array(BARS).fill(0), phase:Math.random()*6}; if(v.source==='rca'){ applyRcaCols(v); } else { v.c1='#0c7a33'; v.c2='#17c257'; v.c3='#4dff8f'; } build(v); vizzes.push(v); });
     var pv=document.getElementById('prViz');
-    if(pv){ vizzes.push({el:pv, canvas:pv, ctx:pv.getContext('2d'), source:'rca', out:new Array(BARS).fill(0), c1:'#7a1717', c2:'#e0392c', c3:'#ff7a5c'}); }
+    if(pv){ var pvv={el:pv, canvas:pv, ctx:pv.getContext('2d'), source:'rca', out:new Array(BARS).fill(0)}; applyRcaCols(pvv); vizzes.push(pvv); }
+    // Huisstijl-wissel: rca-kleuren mee laten kleuren
+    var bp=window.brandPick; window.brandPick=function(n){ if(bp) try{bp(n);}catch(e){} setTimeout(function(){ vizzes.forEach(function(v){ if(v.source==='rca') applyRcaCols(v); }); },50); };
     if(!vizzes.length) return;
     window.addEventListener('resize',function(){ vizzes.forEach(function(v){ v.sized=false; }); });
     requestAnimationFrame(loop);

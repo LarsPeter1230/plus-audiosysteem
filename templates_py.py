@@ -934,6 +934,7 @@ VOLUME_BODY = """
   .pr-now{max-width:560px;margin-top:16px;background:#fff;border:1px solid var(--stroke);border-radius:16px;box-shadow:var(--shadow-sm);padding:clamp(16px,2.6vw,22px)}
   .hist-more{margin-top:8px;width:100%;padding:8px;border-radius:10px;border:1px solid var(--stroke);background:#f4f6f1;color:var(--green-dark);font-weight:600;font-size:12px;cursor:pointer}
   .hist-more:hover{background:#eaf4d8}
+  .pr-viz{display:block;width:100%;height:64px;border-radius:12px;background:radial-gradient(120% 140% at 50% 100%,#161a15 0%,#0a0c09 100%);margin-bottom:14px;box-shadow:inset 0 1px 3px rgba(0,0,0,.5)}
   .pr-now-head{display:flex;align-items:center;gap:10px;margin-bottom:10px}
   .pr-now-head img{width:22px;height:22px;border-radius:6px;background:#fff;padding:2px;box-shadow:0 1px 2px rgba(0,0,0,.15)}
   .pr-now-head .lbl{font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--fg3)}
@@ -960,6 +961,7 @@ VOLUME_BODY = """
   .pr-hist-row .a{color:#7a8a6f;font-size:11px;flex:0 0 auto;white-space:nowrap}
   </style>
   <div class="pr-now pr-empty" id="prNow">
+    <canvas class="pr-viz" id="prViz"></canvas>
     <div class="pr-now-head"><span class="lbl">Nu op</span> <span class="pr-lockup" style="color:var(--green-dark)">{{ plus_wordmark|safe }}<span class="pr-radio">RADIO</span></span></div>
     <div class="pr-title"><span class="pr-eq"><i></i><i></i><i></i></span><span id="prTitle">—</span></div>
     <div class="pr-meta" id="prMeta" style="display:none">
@@ -1914,13 +1916,29 @@ window.onload=()=>{
     fetch('/api/eq/'+v.which).then(function(r){return r.json();}).then(function(j){ if(j.bands){ for(var i=0;i<10;i++) setBand(v,i,j.bands[i]); markPreset(v); } }).catch(function(){});
     v.hint.classList.add('hide');   // server-side visualizer: geen gebruikersgebaar nodig
   }
-  function sizeCanvas(v){ var r=v.canvas.getBoundingClientRect(); if(!r.width) return false; var dpr=window.devicePixelRatio||1; v.canvas.width=Math.round(r.width*dpr); v.canvas.height=Math.round(120*dpr); return true; }
+  function sizeCanvas(v){ var r=v.canvas.getBoundingClientRect(); if(!r.width) return false; var dpr=window.devicePixelRatio||1; v.canvas.width=Math.round(r.width*dpr); v.canvas.height=Math.round((r.height||120)*dpr); return true; }
   function rcaPoll(v){ fetch('/api/viz/rca',{cache:'no-store'}).then(function(r){return r.json();}).then(function(j){ v.tband=j.bands||[]; v.rlive=!!j.live; }).catch(function(){ v.rlive=false; }); }
-  function rcaLevels(v){ var tb=v.tband; if(!tb||!tb.length){ for(var i=0;i<v.out.length;i++) v.out[i]*=0.9; return !!v.rlive; } if(v.out.length!==tb.length) v.out=new Array(tb.length).fill(0); for(var i=0;i<tb.length;i++){ v.out[i]=v.out[i]*0.5+tb[i]*0.5; } return !!v.rlive; }
+  function rcaLevels(v){ var tb=v.tband; if(!tb||!tb.length){ for(var i=0;i<v.out.length;i++) v.out[i]*=0.86; return !!v.rlive; } if(v.out.length!==tb.length) v.out=new Array(tb.length).fill(0); for(var i=0;i<tb.length;i++){ var t=tb[i]; v.out[i]= t>v.out[i] ? (v.out[i]*0.35+t*0.65) : (v.out[i]*0.78+t*0.22); } return !!v.rlive; }
   function spSync(v){ fetch('/api/pi/status',{cache:'no-store'}).then(function(r){return r.json();}).then(function(j){ var np=j.nowplaying||{}; v.spPlaying=(np.state==='playing'); }).catch(function(){ v.spPlaying=false; }); }
   function spLevels(v){ if(!v.spPlaying){ for(var i=0;i<BARS;i++) v.out[i]*=0.9; return false; } v.phase+=0.06; var beat=0.5+0.5*Math.sin(v.phase*3.0); var env=0.55+0.35*Math.sin(v.phase*0.7); for(var i=0;i<BARS;i++){ var x=i/BARS; var shape=Math.sin(Math.PI*Math.pow(x,0.6))*0.8+0.2; var w=0.5+0.5*Math.sin(v.phase*2.1+i*0.6)+0.35*Math.sin(v.phase*1.3+i*1.7); var tgt=Math.max(0,Math.min(1, shape*env*(0.4+0.5*w)+beat*shape*0.25)); v.out[i]=v.out[i]*0.6+tgt*0.4; } return true; }
-  function draw(v){ var c=v.canvas,ctx=v.ctx; if(!c.width) return; var W=c.width,H=c.height,n=v.out.length,bw=W/n; ctx.clearRect(0,0,W,H); for(var i=0;i<n;i++){ var bh=Math.max(H*0.015, v.out[i]*H*0.94),x=i*bw,y=H-bh; var g=ctx.createLinearGradient(0,H,0,y); g.addColorStop(0,v.c1); g.addColorStop(1,v.c2); ctx.fillStyle=g; ctx.fillRect(x+bw*0.14,y,bw*0.72,bh); } }
-  function setStat(v,live){ v.stEl.classList.toggle('live',!!live); v.stLbl.textContent=live?'live':(v.source==='spot'?'stil':'geen signaal'); }
+  function roundBar(ctx,x,y,w,h,r){ if(r>w/2)r=w/2; if(r>h)r=h; ctx.beginPath(); ctx.moveTo(x,y+h); ctx.lineTo(x,y+r); ctx.arcTo(x,y,x+r,y,r); ctx.lineTo(x+w-r,y); ctx.arcTo(x+w,y,x+w,y+r,r); ctx.lineTo(x+w,y+h); ctx.closePath(); ctx.fill(); }
+  function draw(v){
+    var c=v.canvas,ctx=v.ctx; if(!c.width) return; var W=c.width,H=c.height,n=v.out.length; if(!n) return;
+    var slot=W/n, bw=Math.max(2, slot*0.66), pad=(slot-bw)/2;
+    ctx.clearRect(0,0,W,H);
+    if(!v.peaks||v.peaks.length!==n){ v.peaks=new Array(n).fill(0); }
+    var grad=ctx.createLinearGradient(0,H,0,0);
+    grad.addColorStop(0,v.c1); grad.addColorStop(0.55,v.c2); grad.addColorStop(1,v.c3||v.c2);
+    for(var i=0;i<n;i++){
+      var lv=v.out[i];
+      v.peaks[i] = lv>v.peaks[i] ? lv : Math.max(lv, v.peaks[i]-0.018);
+      var bh=Math.max(H*0.02, lv*H*0.9), x=i*slot+pad, y=H-bh;
+      ctx.fillStyle=grad; roundBar(ctx,x,y,bw,bh,Math.min(bw/2,4));
+      var py=H-Math.max(H*0.02, v.peaks[i]*H*0.9);
+      ctx.fillStyle='rgba(255,255,255,.5)'; ctx.fillRect(x, Math.max(1,py-2), bw, 2);
+    }
+  }
+  function setStat(v,live){ if(!v.stEl) return; v.stEl.classList.toggle('live',!!live); v.stLbl.textContent=live?'live':(v.source==='spot'?'stil':'geen signaal'); }
   function loop(){
     var vis=document.visibilityState!=='hidden';
     for(var i=0;i<vizzes.length;i++){
@@ -1940,8 +1958,10 @@ window.onload=()=>{
     requestAnimationFrame(loop);
   }
   function initAll(){
-    var els=document.querySelectorAll('.eqviz'); if(!els.length) return;
-    els.forEach(function(el){ var v={el:el, source:el.dataset.source, which:el.dataset.eq, edit:el.dataset.edit==='1', title:el.dataset.title||'', out:new Array(BARS).fill(0), phase:Math.random()*6}; if(v.source==='rca'){ v.c1='#8b1f1f'; v.c2='#ff6a5c'; } else { v.c1='#0c7a33'; v.c2='#1ed760'; } build(v); vizzes.push(v); });
+    [].forEach.call(document.querySelectorAll('.eqviz'),function(el){ var v={el:el, source:el.dataset.source, which:el.dataset.eq, edit:el.dataset.edit==='1', title:el.dataset.title||'', out:new Array(BARS).fill(0), phase:Math.random()*6}; if(v.source==='rca'){ v.c1='#7a1717'; v.c2='#e0392c'; v.c3='#ff7a5c'; } else { v.c1='#0c7a33'; v.c2='#17c257'; v.c3='#4dff8f'; } build(v); vizzes.push(v); });
+    var pv=document.getElementById('prViz');
+    if(pv){ vizzes.push({el:pv, canvas:pv, ctx:pv.getContext('2d'), source:'rca', out:new Array(BARS).fill(0), c1:'#7a1717', c2:'#e0392c', c3:'#ff7a5c'}); }
+    if(!vizzes.length) return;
     window.addEventListener('resize',function(){ vizzes.forEach(function(v){ v.sized=false; }); });
     requestAnimationFrame(loop);
   }

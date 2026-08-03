@@ -5114,6 +5114,7 @@ pcm.eq_spot_plug {{ type plug; slave.pcm "eq_spot" }}
 pcm.spot {{ type softvol; slave.pcm "eq_spot_plug"; control {{ name "SPOT"; card {pc} }}; min_dB -51.0; max_dB 0.0 }}
 ctl.spot {{ type hw; card {pc} }}
 pcm.null_sink {{ type null }}
+pcm.null_src {{ type plug; slave {{ pcm {{ type null }} }} }}
 """
 
 @app.route("/api/audio/apply", methods=["POST"])
@@ -6409,14 +6410,6 @@ def _render_sip_config():
     (zo lang als de max-omroepduur, zodat de eenrichtings-bron nooit opraakt)."""
     os.makedirs(SIP_DIR, exist_ok=True)
     s = settings
-    dur = max(30, min(1800, int(s.get("sip_max_secs") or 300))) + 5
-    try:
-        subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y",
-                        "-f", "lavfi", "-i", "anullsrc=r=8000:cl=mono",
-                        "-t", str(dur), "-ar", "8000", "-ac", "1", SIP_SILENCE],
-                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=30)
-    except Exception:
-        pass
     ext  = str(s.get("sip_extension") or "").strip()
     reg  = str(s.get("sip_registrar_host") or "").strip()
     try:    regp = int(s.get("sip_registrar_port") or 5060)
@@ -6439,15 +6432,14 @@ def _render_sip_config():
            "module           g711.so\n"
            "module           g722.so\n"
            "module           stun.so\n"
-           "module           aufile.so\n"
            "module           alsa.so\n"
            "module           menu.so\n"
            "module           ctrl_tcp.so\n"
            "ctrl_tcp_listen  %s:%d\n"
            "audio_player     alsa,pst\n"
-           "audio_source     aufile,%s\n"
+           "audio_source     alsa,null_src\n"    # eenrichting: stilte op elke codec-rate
            "audio_alert      alsa,null_sink\n"   # beltoon niet naar de speakers
-           % (SIP_SIP_PORT, SIP_CTRL_HOST, SIP_CTRL_PORT, SIP_SILENCE))
+           % (SIP_SIP_PORT, SIP_CTRL_HOST, SIP_CTRL_PORT))
     with open(os.path.join(SIP_DIR, "config"), "w") as f:
         f.write(cfg)
 

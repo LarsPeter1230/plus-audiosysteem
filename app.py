@@ -171,6 +171,18 @@ SETTINGS_DEFAULTS = {
     # ── Huisstijl / branding (white-label uitrol) ──
     "brand_theme": "plus",          # actieve huisstijl: "plus" | "ah" (uitbreidbaar, bijv. "jumbo")
     "brand_logo_overrides": {},     # per thema een geüpload logo als data-URI/URL, bijv. {"ah": "data:image/svg+xml;base64,..."}
+    # ── Live omroep via SIP (3CX / SBC): bel een extensie → live over de speakers ──
+    "sip_enabled": False,           # aan = registreer als toestel bij de SBC en neem inkomende gesprekken aan
+    "sip_extension": "",            # extensienummer om te bellen, bijv. 321
+    "sip_auth_id": "",              # Authentication ID (3CX)
+    "sip_auth_pass": "",            # Authentication password (secret — alleen in ~/omroepweb/settings.json)
+    "sip_registrar_host": "",       # Registrar hostname/IP, bijv. pluskoelhuis.my3cx.nl
+    "sip_registrar_port": 5060,
+    "sip_sbc_host": "",             # Outbound Proxy (SBC) adres, bijv. 10.0.13.254
+    "sip_sbc_port": 5060,
+    "sip_max_secs": 300,            # max. omroepduur (veiligheid tegen 'open microfoon')
+    "sip_intro": True,              # intro (preroll) vóór de live omroep
+    "sip_outro": True,              # outro ná de live omroep
 }
 settings = _load_json(SETTINGS_JSON, dict(SETTINGS_DEFAULTS))
 for _k, _v in SETTINGS_DEFAULTS.items():   # nieuwe default-sleutels invullen (bestaande blijven)
@@ -6342,9 +6354,505 @@ def _startup_audio():
     except Exception:
         pass
 
+# ══════════════════════════════════════════════════════════════════════
+# Live omroep via SIP (3CX / SBC)
+# Bel het ingestelde extensienummer vanaf een 3CX-toestel → de app neemt op,
+# speelt de intro, laat de stem van de beller LIVE over de winkelspeakers
+# horen (via dezelfde `pst`-uitgang + duck als presets/TTS) en speelt na het
+# ophangen de outro. Eenrichting: de winkel hoort de beller; de beller hoort
+# de winkel niet (stilte-bron) → geen rondzingen. baresip draait als kind-
+# proces van de app en wordt bestuurd via ctrl_tcp (JSON-netstrings).
+# ══════════════════════════════════════════════════════════════════════
+SIP_DIR       = os.path.join(APP_DIR, "baresip")
+SIP_SILENCE   = os.path.join(SIP_DIR, "silence.wav")
+SIP_LOG       = os.path.join(SIP_DIR, "baresip.log")
+SIP_CTRL_HOST = "127.0.0.1"
+SIP_CTRL_PORT = 4444
+SIP_SIP_PORT  = 5062
+
+_sip_proc       = None
+_sip_proc_lock  = threading.Lock()
+_sip_sock       = None
+_sip_send_lock  = threading.Lock()
+_sip_call_ended = threading.Event()
+_sip_state = {"running": False, "registered": False, "in_call": False,
+              "last_event": "", "last_peer": ""}
+
+def _sip_cfg_ok():
+    """Alle vereiste velden ingevuld én ingeschakeld (en niet in demo)?"""
+    s = settings
+    if s.get("demo_mode"):
+        return False
+    return bool(s.get("sip_enabled") and s.get("sip_extension") and
+                s.get("sip_registrar_host") and s.get("sip_sbc_host") and
+                s.get("sip_auth_id") and s.get("sip_auth_pass"))
+
+def _render_sip_config():
+    """Schrijf baresip's accounts+config uit de instellingen + een stilte-bron
+    (zo lang als de max-omroepduur, zodat de eenrichtings-bron nooit opraakt)."""
+    os.makedirs(SIP_DIR, exist_ok=True)
+    s = settings
+    dur = max(30, min(1800, int(s.get("sip_max_secs") or 300))) + 5
+    try:
+        subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y",
+                        "-f", "lavfi", "-i", "anullsrc=r=8000:cl=mono",
+                        "-t", str(dur), "-ar", "8000", "-ac", "1", SIP_SILENCE],
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=30)
+    except Exception:
+        pass
+    ext  = str(s.get("sip_extension") or "").strip()
+    reg  = str(s.get("sip_registrar_host") or "").strip()
+    try:    regp = int(s.get("sip_registrar_port") or 5060)
+    except Exception: regp = 5060
+    sbc  = str(s.get("sip_sbc_host") or "").strip()
+    try:    sbcp = int(s.get("sip_sbc_port") or 5060)
+    except Exception: sbcp = 5060
+    aid  = str(s.get("sip_auth_id") or "").strip()
+    pwd  = str(s.get("sip_auth_pass") or "")
+    reg_uri = "sip:%s@%s%s" % (ext, reg, (":%d" % regp if regp and regp != 5060 else ""))
+    acc = ('<%s>;auth_user=%s;auth_pass=%s;outbound="sip:%s:%d;transport=udp";'
+           'regint=600;answermode=manual;ptime=20\n' % (reg_uri, aid, pwd, sbc, sbcp))
+    with open(os.path.join(SIP_DIR, "accounts"), "w") as f:
+        f.write(acc)
+    try: os.chmod(os.path.join(SIP_DIR, "accounts"), 0o600)   # wachtwoord → alleen radio
+    except Exception: pass
+    cfg = ("module_path      /usr/lib/baresip/modules\n"
+           "sip_listen       0.0.0.0:%d\n"
+           "module           account.so\n"
+           "module           g711.so\n"
+           "module           g722.so\n"
+           "module           stun.so\n"
+           "module           aufile.so\n"
+           "module           alsa.so\n"
+           "module           menu.so\n"
+           "module           ctrl_tcp.so\n"
+           "ctrl_tcp_listen  %s:%d\n"
+           "audio_player     alsa,pst\n"
+           "audio_source     aufile,%s\n"
+           "audio_alert      alsa,pst\n"
+           % (SIP_SIP_PORT, SIP_CTRL_HOST, SIP_CTRL_PORT, SIP_SILENCE))
+    with open(os.path.join(SIP_DIR, "config"), "w") as f:
+        f.write(cfg)
+
+def _sip_start_proc():
+    global _sip_proc
+    if settings.get("demo_mode"):
+        return
+    with _sip_proc_lock:
+        if _sip_proc and _sip_proc.poll() is None:
+            return
+        try:
+            _render_sip_config()
+            logf = open(SIP_LOG, "w")
+            _sip_proc = subprocess.Popen(
+                ["baresip", "-f", SIP_DIR],
+                stdout=logf, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL,
+                env={**os.environ, "HOME": HOME})
+            _sip_state["running"] = True
+            log_action("Live omroep (SIP): baresip gestart", source="sip")
+        except Exception as e:
+            _sip_proc = None
+            log_action("Live omroep (SIP): starten mislukt: %s" % e, source="sip")
+
+def _sip_stop_proc():
+    global _sip_proc, _sip_sock
+    with _sip_proc_lock:
+        p = _sip_proc
+        _sip_proc = None
+    if p and p.poll() is None:
+        try: p.terminate()
+        except Exception: pass
+        try: p.wait(timeout=4)
+        except Exception:
+            try: p.kill()
+            except Exception: pass
+    _sip_state.update({"running": False, "registered": False, "in_call": False})
+    try:
+        if _sip_sock: _sip_sock.close()
+    except Exception: pass
+    _sip_sock = None
+
+def _sip_restart():
+    _sip_stop_proc()
+    time.sleep(0.5)
+    if _sip_cfg_ok():
+        _sip_start_proc()
+
+def _sip_supervisor_loop():
+    """Houdt baresip draaiend zolang de functie aan+ingesteld is; herstart bij
+    een crash; stopt 'm als de functie uit gaat."""
+    while True:
+        try:
+            want = _sip_cfg_ok()
+            with _sip_proc_lock:
+                alive = bool(_sip_proc and _sip_proc.poll() is None)
+            if want and not alive:
+                _sip_start_proc()
+            elif (not want) and alive:
+                _sip_stop_proc()
+        except Exception:
+            pass
+        time.sleep(6)
+
+def _sip_send(command):
+    """Stuur een baresip-commando via ctrl_tcp (netstring-JSON)."""
+    global _sip_sock
+    j = json.dumps({"command": command})
+    ns = ("%d:%s," % (len(j), j)).encode()
+    with _sip_send_lock:
+        try:
+            if _sip_sock:
+                _sip_sock.sendall(ns)
+                return True
+        except Exception:
+            pass
+    return False
+
+def _sip_on_message(data):
+    try:
+        msg = json.loads(data.decode("utf-8", "replace"))
+    except Exception:
+        return
+    if not isinstance(msg, dict) or not msg.get("event"):
+        return
+    typ = (msg.get("type") or "").upper()
+    _sip_state["last_event"] = typ
+    if typ == "REGISTER_OK":
+        if not _sip_state["registered"]:
+            log_action("Live omroep (SIP): geregistreerd bij de SBC", source="sip")
+        _sip_state["registered"] = True
+    elif typ in ("REGISTER_FAIL", "UNREGISTERING"):
+        _sip_state["registered"] = False
+    elif typ == "CALL_INCOMING":
+        peer = msg.get("peeruri") or msg.get("param") or ""
+        _sip_state["last_peer"] = peer
+        threading.Thread(target=_sip_handle_call, args=(peer,), daemon=True).start()
+    elif typ == "CALL_CLOSED":
+        _sip_call_ended.set()
+
+def _sip_ctrl_loop():
+    """Verbindt met baresip's ctrl_tcp, leest events (netstrings) en verwerkt ze."""
+    global _sip_sock
+    while True:
+        with _sip_proc_lock:
+            alive = bool(_sip_proc and _sip_proc.poll() is None)
+        if not alive:
+            _sip_state["registered"] = False
+            time.sleep(2); continue
+        try:
+            s = socket.create_connection((SIP_CTRL_HOST, SIP_CTRL_PORT), timeout=4)
+        except Exception:
+            time.sleep(2); continue
+        _sip_sock = s
+        buf = b""
+        try:
+            s.settimeout(1.0)
+            while True:
+                with _sip_proc_lock:
+                    if not (_sip_proc and _sip_proc.poll() is None):
+                        break
+                try:
+                    chunk = s.recv(4096)
+                    if not chunk:
+                        break
+                    buf += chunk
+                except socket.timeout:
+                    continue
+                except Exception:
+                    break
+                while True:                     # parse netstrings: <len>:<data>,
+                    ci = buf.find(b":")
+                    if ci < 0 or ci > 12:
+                        if ci > 12: buf = b""    # verminkt → weggooien
+                        break
+                    try:
+                        ln = int(buf[:ci])
+                    except Exception:
+                        buf = b""; break
+                    if len(buf) < ci + 1 + ln + 1:
+                        break
+                    payload = buf[ci + 1: ci + 1 + ln]
+                    buf = buf[ci + 1 + ln + 1:]  # trailing komma overslaan
+                    _sip_on_message(payload)
+        except Exception:
+            pass
+        finally:
+            try: s.close()
+            except Exception: pass
+            _sip_sock = None
+        time.sleep(1)
+
+def _sip_handle_call(peer):
+    """Inkomend gesprek → dempen, intro, aannemen, live over de speakers,
+    outro, muziek herstellen. Serieel met presets/TTS via duck_lock."""
+    if _sip_state.get("in_call") or not _sip_cfg_ok():
+        _sip_send("hangup"); return
+    if not duck_lock.acquire(timeout=2):         # er loopt al een omroep → bezet
+        _sip_send("hangup"); return
+    prev_bg = get_bg_volume_pct()
+    t_duck  = None
+    try:
+        _sip_state["in_call"] = True
+        _sip_call_ended.clear()
+        log_action("Live omroep gestart (beller %s)" % (peer or "?"), source="sip")
+        t_duck = threading.Thread(target=pi_duck, daemon=True)
+        if PI_ENABLED:
+            t_duck.start()
+        _duck_local(prev_bg)                     # Spotify + PLUS Radio wegfaden
+        set_pst_gain(100)
+        if PI_ENABLED and t_duck is not None:
+            t_duck.join(timeout=PI_DUCK_WAIT)
+        if settings.get("sip_intro", True):
+            _play_preroll()
+        _sip_send("accept")                      # nu aannemen → live audio naar pst
+        maxs = max(10, min(1800, int(settings.get("sip_max_secs") or 300)))
+        if not _sip_call_ended.wait(timeout=maxs):
+            log_action("Live omroep: max-duur bereikt → automatisch beëindigd", source="sip")
+            _sip_send("hangup")
+            _sip_call_ended.wait(timeout=3)
+        if settings.get("sip_outro", True):
+            _play_outro()
+    except Exception as e:
+        log_action("Live omroep fout: %s" % e, source="sip")
+        try: _sip_send("hangup")
+        except Exception: pass
+    finally:
+        if PI_ENABLED and t_duck is not None:
+            try: t_duck.join(timeout=8)
+            except Exception: pass
+            threading.Thread(target=pi_unduck, daemon=True).start()
+        try: _unduck_local(prev_bg)
+        except Exception: pass
+        _sip_state["in_call"] = False
+        log_action("Live omroep beëindigd", source="sip")
+        duck_lock.release()
+
+def _sip_probe_register(timeout=10):
+    """Verbindings-/registratietest: bereikt de VM de SBC, en accepteert die de
+    registratie van de extensie? Draait de functie al (ingeschakeld) → live-
+    status. Anders → een korte wegwerp-baresip op aparte poorten die één keer
+    probeert te registreren. Onderscheidt 3 gevallen:
+      • REGISTER_OK   → gelukt
+      • REGISTER_FAIL → SBC antwoordt maar wéígert (auth/extensie)
+      • geen antwoord → SBC onbereikbaar (firewall-retourpad)."""
+    s = settings
+    for k in ("sip_extension", "sip_registrar_host", "sip_sbc_host",
+              "sip_auth_id", "sip_auth_pass"):
+        if not s.get(k):
+            return {"ok": False, "stage": "config",
+                    "msg": "Vul eerst alle velden in en sla op."}
+    reg_host = str(s.get("sip_registrar_host")).strip()
+    try:    dns_ip = socket.gethostbyname(reg_host)
+    except Exception: dns_ip = None
+    sbc = str(s.get("sip_sbc_host")).strip()
+    try:    sbcp = int(s.get("sip_sbc_port") or 5060)
+    except Exception: sbcp = 5060
+    # Al een ingeschakelde sessie actief? → gebruik de live registratiestatus.
+    with _sip_proc_lock:
+        alive = bool(_sip_proc and _sip_proc.poll() is None)
+    if alive:
+        if _sip_state.get("registered"):
+            return {"ok": True, "stage": "live", "registered": True, "dns": dns_ip,
+                    "msg": "Geregistreerd bij de SBC — bellen kan."}
+        return {"ok": False, "stage": "live", "registered": False, "dns": dns_ip,
+                "msg": "baresip draait maar is (nog) niet geregistreerd — geen "
+                       "antwoord van de SBC. Controleer het firewall-retourpad "
+                       "(SBC → %s) en de 3CX-kant." % reg_host}
+    # Wegwerp-probe op aparte poorten (raakt de hoofd-instantie niet).
+    d = tempfile.mkdtemp(prefix="sipprobe_")
+    ctrlp, sipp = 4460, 5064
+    proc = None
+    try:
+        ext = str(s.get("sip_extension")).strip()
+        aid = str(s.get("sip_auth_id")).strip()
+        pwd = str(s.get("sip_auth_pass"))
+        try:    regp = int(s.get("sip_registrar_port") or 5060)
+        except Exception: regp = 5060
+        reg_uri = "sip:%s@%s%s" % (ext, reg_host, (":%d" % regp if regp and regp != 5060 else ""))
+        with open(os.path.join(d, "accounts"), "w") as f:
+            f.write('<%s>;auth_user=%s;auth_pass=%s;outbound="sip:%s:%d;transport=udp";'
+                    'regint=600;answermode=manual\n' % (reg_uri, aid, pwd, sbc, sbcp))
+        os.chmod(os.path.join(d, "accounts"), 0o600)
+        with open(os.path.join(d, "config"), "w") as f:
+            f.write("module_path /usr/lib/baresip/modules\n"
+                    "sip_listen 0.0.0.0:%d\nmodule account.so\nmodule g711.so\n"
+                    "module stun.so\nmodule menu.so\nmodule ctrl_tcp.so\n"
+                    "ctrl_tcp_listen 127.0.0.1:%d\n" % (sipp, ctrlp))
+        proc = subprocess.Popen(["baresip", "-f", d],
+                                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                                stdin=subprocess.DEVNULL, env={**os.environ, "HOME": HOME})
+        deadline = time.time() + timeout
+        sock = None
+        while time.time() < deadline and sock is None:
+            try:    sock = socket.create_connection((SIP_CTRL_HOST, ctrlp), timeout=2)
+            except Exception: time.sleep(0.4)
+        registered, failmsg = None, ""
+        if sock:
+            sock.settimeout(1.0); buf = b""
+            while time.time() < deadline:
+                try:    chunk = sock.recv(4096)
+                except socket.timeout: continue
+                except Exception: break
+                if not chunk: break
+                buf += chunk
+                while True:
+                    ci = buf.find(b":")
+                    if ci < 0 or ci > 12:
+                        if ci > 12: buf = b""
+                        break
+                    try:    ln = int(buf[:ci])
+                    except Exception: buf = b""; break
+                    if len(buf) < ci + 1 + ln + 1: break
+                    payload = buf[ci + 1: ci + 1 + ln]; buf = buf[ci + 1 + ln + 1:]
+                    try:    msg = json.loads(payload.decode("utf-8", "replace"))
+                    except Exception: msg = None
+                    if isinstance(msg, dict) and msg.get("event"):
+                        t = (msg.get("type") or "").upper()
+                        if t == "REGISTER_OK":
+                            registered = True
+                        elif t == "REGISTER_FAIL":
+                            registered = False; failmsg = str(msg.get("param") or "")
+                if registered is not None: break
+            try: sock.close()
+            except Exception: pass
+        if registered is True:
+            return {"ok": True, "stage": "probe", "registered": True, "dns": dns_ip,
+                    "msg": "Registratie gelukt — de SBC accepteert extensie %s. ✔" % ext}
+        if registered is False:
+            return {"ok": False, "stage": "probe", "registered": False, "dns": dns_ip,
+                    "msg": "De SBC antwoordt, maar wéígert de registratie — controleer "
+                           "Auth-ID, wachtwoord en extensie.%s"
+                           % ((" (%s)" % failmsg) if failmsg else "")}
+        return {"ok": False, "stage": "probe", "registered": None, "dns": dns_ip,
+                "msg": "Geen antwoord van de SBC (%s:%d) binnen %d s — de pakketten "
+                       "komen niet terug. Controleer het firewall-retourpad tussen "
+                       "%s (radio) en de SBC, en of 3CX de VM niet blokkeert."
+                       % (sbc, sbcp, timeout, "10.0.12.70")}
+    finally:
+        if proc and proc.poll() is None:
+            try: proc.terminate(); proc.wait(timeout=3)
+            except Exception:
+                try: proc.kill()
+                except Exception: pass
+        shutil.rmtree(d, ignore_errors=True)
+
+def _sip_test_announce():
+    """Test de omroep-audioketen zónder telefoontje: dempen → intro →
+    gesproken testregel → outro → herstel. Zo hoor je precies hoe een echte
+    live omroep klinkt (werkt ook als de SBC-registratie nog niet rond is)."""
+    if _sip_state.get("in_call"):
+        return False
+    if not duck_lock.acquire(timeout=2):
+        return False
+    prev_bg = get_bg_volume_pct()
+    t_duck  = None
+    tmpwav  = None
+    try:
+        log_action("Live omroep: testomroep afgespeeld", source="sip")
+        t_duck = threading.Thread(target=pi_duck, daemon=True)
+        if PI_ENABLED:
+            t_duck.start()
+        _duck_local(prev_bg)
+        set_pst_gain(100)
+        if PI_ENABLED and t_duck is not None:
+            t_duck.join(timeout=PI_DUCK_WAIT)
+        if settings.get("sip_intro", True):
+            _play_preroll()
+        try:
+            tmpwav = _tts_generate_to_wav(
+                "Dit is een test van de live omroep via de telefoon.",
+                settings.get("tts_edge_voice") or "nl-NL-MaartenNeural", 165)
+        except Exception:
+            tmpwav = None
+        if tmpwav and os.path.exists(tmpwav):
+            _play_file_to_pst(tmpwav)
+        if settings.get("sip_outro", True):
+            _play_outro()
+    finally:
+        if PI_ENABLED and t_duck is not None:
+            try: t_duck.join(timeout=8)
+            except Exception: pass
+            threading.Thread(target=pi_unduck, daemon=True).start()
+        try: _unduck_local(prev_bg)
+        except Exception: pass
+        if tmpwav:
+            try: os.remove(tmpwav)
+            except Exception: pass
+        duck_lock.release()
+    return True
+
+@app.route("/api/sip/status")
+def api_sip_status():
+    admin_required()
+    s = settings
+    return jsonify(
+        enabled=bool(s.get("sip_enabled")),
+        configured=_sip_cfg_ok(),
+        running=_sip_state.get("running", False),
+        registered=_sip_state.get("registered", False),
+        in_call=_sip_state.get("in_call", False),
+        last_event=_sip_state.get("last_event", ""),
+        last_peer=_sip_state.get("last_peer", ""),
+        extension=s.get("sip_extension", ""),
+        registrar=s.get("sip_registrar_host", ""),
+        sbc=s.get("sip_sbc_host", ""),
+    )
+
+@app.route("/admin/sip/save", methods=["POST"])
+def admin_sip_save():
+    admin_required()
+    d = request.get_json(silent=True) or {}
+    def _str(k):
+        v = d.get(k, "")
+        return v.strip() if isinstance(v, str) else str(v or "").strip()
+    def _port(k, dflt=5060):
+        try: return max(1, min(65535, int(d.get(k) or dflt)))
+        except Exception: return dflt
+    settings["sip_enabled"]        = bool(d.get("sip_enabled"))
+    settings["sip_extension"]      = _str("sip_extension")[:32]
+    settings["sip_auth_id"]        = _str("sip_auth_id")[:64]
+    pw = d.get("sip_auth_pass")
+    if pw:                                        # leeg = ongewijzigd laten
+        settings["sip_auth_pass"] = str(pw)[:128]
+    settings["sip_registrar_host"] = _str("sip_registrar_host")[:128]
+    settings["sip_sbc_host"]       = _str("sip_sbc_host")[:128]
+    settings["sip_registrar_port"] = _port("sip_registrar_port")
+    settings["sip_sbc_port"]       = _port("sip_sbc_port")
+    try:    settings["sip_max_secs"] = max(10, min(1800, int(d.get("sip_max_secs") or 300)))
+    except Exception: settings["sip_max_secs"] = 300
+    settings["sip_intro"] = bool(d.get("sip_intro", True))
+    settings["sip_outro"] = bool(d.get("sip_outro", True))
+    _save_json(SETTINGS_JSON, settings)
+    log_action("Live omroep (SIP)-instellingen opgeslagen", source="admin")
+    threading.Thread(target=_sip_restart, daemon=True).start()   # herstart/stop baresip
+    return jsonify(ok=True, configured=_sip_cfg_ok())
+
+@app.route("/admin/sip/test", methods=["POST"])
+def admin_sip_test():
+    admin_required()
+    if settings.get("demo_mode"):
+        return jsonify(ok=False, error="Niet beschikbaar in demo")
+    if _sip_state.get("in_call"):
+        return jsonify(ok=False, error="Er loopt al een live omroep")
+    threading.Thread(target=_sip_test_announce, daemon=True).start()
+    return jsonify(ok=True)
+
+@app.route("/admin/sip/test_connection", methods=["POST"])
+def admin_sip_test_connection():
+    admin_required()
+    if settings.get("demo_mode"):
+        return jsonify(ok=False, msg="Niet beschikbaar in demo")
+    try:
+        return jsonify(_sip_probe_register(timeout=10))
+    except Exception as e:
+        return jsonify(ok=False, msg="Test mislukt: %s" % e)
+
+
 if __name__ == "__main__":
     threading.Thread(target=_startup_audio, daemon=True).start()
     threading.Thread(target=_lisa_loop, daemon=True).start()
+    threading.Thread(target=_sip_supervisor_loop, daemon=True).start()   # baresip aan/uit + crash-herstel
+    threading.Thread(target=_sip_ctrl_loop, daemon=True).start()         # SIP-events + belafhandeling
     for _f in glob.glob("/tmp/comm_*.wav"):   # opruimen na een eventuele crash
         try: os.remove(_f)
         except Exception: pass

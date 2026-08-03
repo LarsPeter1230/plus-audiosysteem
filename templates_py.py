@@ -2931,6 +2931,7 @@ BEHEER_BODY = """
   <button type="button" class="btab" data-tab="audio" onclick="beheerTab('audio')"><span class="mi">graphic_eq</span> Audio</button>
   <button type="button" class="btab" data-tab="spotifybeheer" onclick="beheerTab('spotifybeheer')"><img src="{{ spotify_logo }}" alt="Spotify" style="height:17px;vertical-align:middle;display:inline-block"></button>
   <button type="button" class="btab" data-tab="plusradio" onclick="beheerTab('plusradio')"><span class="pr-lockup">{{ plus_wordmark|safe }}<span class="pr-radio">RADIO</span></span></button>
+  <button type="button" class="btab" data-tab="sip" onclick="beheerTab('sip')"><span class="mi">campaign</span> Live omroep</button>
   <button type="button" class="btab" data-tab="ip" onclick="beheerTab('ip')"><span class="mi">verified_user</span> Toegang</button>
   <button type="button" class="btab" data-tab="woorden" onclick="beheerTab('woorden')"><span class="mi">block</span> Woordfilter</button>
   <button type="button" class="btab" data-tab="snel" onclick="beheerTab('snel')"><span class="mi">bolt</span> Snel invoegen</button>
@@ -3387,6 +3388,131 @@ BEHEER_BODY = """
 </div>
 
 <!-- IP-REGELS -->
+<!-- LIVE OMROEP (SIP) -->
+<div class="bpanel" data-panel="sip">
+  <div class="beheer-card" style="border-left:4px solid var(--green)">
+    <h3 style="display:flex;align-items:center;gap:8px"><span class="mi">campaign</span> Live omroep via de telefoon (3CX / SIP)</h3>
+    <div class="help" style="margin-bottom:12px">Bel vanaf een 3CX-toestel het ingestelde extensienummer om <b>live over de winkelspeakers</b> om te roepen. Bij het opnemen speelt eerst de <b>intro</b>, daarna hoort de winkel jouw stem, en na het ophangen de <b>outro</b> &mdash; de muziek (Spotify / {{ brand.radio_name }} / reclame) wordt automatisch gedempt en daarna hersteld.</div>
+    <div id="sipStatus" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 12px;background:var(--bg2,#f6f7f4);border-radius:10px;margin-bottom:16px">
+      <span class="mi" id="sipDot" style="color:#9aa0a6;font-size:14px">circle</span>
+      <span id="sipStatusTxt" style="font-weight:600">Status laden&hellip;</span>
+    </div>
+
+    <label class="switch-row"><input type="checkbox" id="sipEnabled" {{ 'checked' if settings.sip_enabled else '' }}> <span>Live omroep inschakelen <span class="help">(registreert als toestel bij de SBC en neemt inkomende gesprekken aan)</span></span></label>
+    <div style="height:12px"></div>
+    <div class="row">
+      <div class="col"><div class="label">Extensienummer</div>
+        <input class="input" id="sipExt" placeholder="bijv. 321" autocomplete="off" value="{{ settings.sip_extension or '' }}"></div>
+      <div class="col"><div class="label">Authentication ID</div>
+        <input class="input" id="sipAuthId" autocomplete="off" value="{{ settings.sip_auth_id or '' }}"></div>
+    </div>
+    <div class="row">
+      <div class="col"><div class="label">Authentication password</div>
+        <input class="input" type="password" id="sipAuthPass" placeholder="{{ '••••••••  (leeg = ongewijzigd)' if settings.sip_auth_pass else 'wachtwoord' }}" autocomplete="new-password"></div>
+      <div class="col"><div class="label">Registrar hostname of IP</div>
+        <input class="input" id="sipReg" placeholder="bijv. pluskoelhuis.my3cx.nl" autocomplete="off" value="{{ settings.sip_registrar_host or '' }}"></div>
+    </div>
+    <div class="row">
+      <div class="col"><div class="label">Registrar SIP-poort</div>
+        <input class="input" type="number" id="sipRegPort" value="{{ settings.sip_registrar_port or 5060 }}"></div>
+      <div class="col"><div class="label">Outbound Proxy (SBC) adres</div>
+        <input class="input" id="sipSbc" placeholder="bijv. 10.0.13.254" autocomplete="off" value="{{ settings.sip_sbc_host or '' }}"></div>
+    </div>
+    <div class="row">
+      <div class="col"><div class="label">Outbound Proxy (SBC) poort</div>
+        <input class="input" type="number" id="sipSbcPort" value="{{ settings.sip_sbc_port or 5060 }}"></div>
+      <div class="col"><div class="label">Max. omroepduur (seconden)</div>
+        <input class="input" type="number" id="sipMax" value="{{ settings.sip_max_secs or 300 }}">
+        <div class="help">Veiligheid tegen een &laquo;open microfoon&raquo;: het gesprek stopt automatisch na deze tijd.</div></div>
+    </div>
+    <div style="height:6px"></div>
+    <label class="switch-row"><input type="checkbox" id="sipIntro" {{ 'checked' if settings.sip_intro else '' }}> <span>Intro afspelen vóór de omroep</span></label>
+    <label class="switch-row"><input type="checkbox" id="sipOutro" {{ 'checked' if settings.sip_outro else '' }}> <span>Outro afspelen ná de omroep</span></label>
+    <div class="help" style="margin:6px 0 14px">Gebruikt dezelfde intro/outro als je presets en TTS (uploadbaar onder <b>Audio</b>).</div>
+
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+      <button type="button" class="btn btn-primary btn-inline" style="width:auto" onclick="sipSave()"><span class="mi">save</span> Opslaan</button>
+      <span id="sipSaveMsg" style="font-size:13px;display:none"></span>
+    </div>
+  </div>
+
+  <div class="beheer-card">
+    <h3 style="display:flex;align-items:center;gap:8px"><span class="mi">wifi_find</span> Verbinding &amp; registratie testen</h3>
+    <div class="help" style="margin-bottom:10px">Controleert of de VM de <b>SBC</b> bereikt en of extensie <b>{{ settings.sip_extension or '(nog leeg)' }}</b> zich kan <b>registreren</b>. Werkt ook als de functie nog uit staat. Zegt precies wát er misgaat: SBC onbereikbaar, geweigerd, of gelukt.</div>
+    <button type="button" class="btn btn-inline" style="width:auto" onclick="sipTestConn()"><span class="mi">wifi_find</span> Verbinding testen</button>
+    <div id="sipConnRes" style="margin-top:12px;font-size:13px;display:none;padding:10px 12px;border-radius:10px;line-height:1.5"></div>
+  </div>
+
+  <div class="beheer-card">
+    <h3 style="display:flex;align-items:center;gap:8px"><span class="mi">volume_up</span> Testen</h3>
+    <div class="help" style="margin-bottom:10px">Speel een <b>testomroep</b> af over de winkelspeakers (dempen &rarr; intro &rarr; testboodschap &rarr; outro), precies zoals een echt telefoontje klinkt. Werkt ook <b>zonder</b> dat de SBC-registratie al rond is &mdash; handig om de speakers, intro/outro en het dempen te controleren.</div>
+    <button type="button" class="btn btn-gold btn-inline" style="width:auto" onclick="sipTest()"><span class="mi">campaign</span> Testomroep afspelen</button>
+    <span id="sipTestMsg" style="font-size:13px;display:none;margin-left:10px"></span>
+    <div class="help" style="margin-top:12px"><b>Echte test:</b> staat de status hierboven op <span style="color:#2e7d32;font-weight:700">groen (geregistreerd)</span>, bel dan vanaf een 3CX-toestel <b>{{ settings.sip_extension or 'de extensie' }}</b> en spreek na het verbinden je omroep in. Ophangen = klaar.</div>
+  </div>
+  <script>
+  (function(){
+    function el(id){return document.getElementById(id);}
+    window.sipStatusPoll=function(){
+      fetch('/api/sip/status',{cache:'no-store'}).then(function(r){return r.json();}).then(function(j){
+        var dot=el('sipDot'), txt=el('sipStatusTxt'), col, msg;
+        if(!j.enabled){ col='#9aa0a6'; msg='Uitgeschakeld.'; }
+        else if(j.in_call){ col='#1769aa'; msg='Bezig met een live omroep' + (j.last_peer?(' — '+j.last_peer):'') + '…'; }
+        else if(j.registered){ col='#2e7d32'; msg='Geregistreerd bij de SBC — bel '+(j.extension||'de extensie')+' om om te roepen.'; }
+        else if(j.running){ col='#f9a825'; msg='Verbinden met de SBC… (nog niet geregistreerd — controleer firewall/3CX)'; }
+        else if(!j.configured){ col='#9aa0a6'; msg='Nog niet volledig ingevuld.'; }
+        else { col='#c62828'; msg='Niet verbonden.'; }
+        dot.style.color=col; txt.textContent=msg;
+      }).catch(function(){});
+    };
+    window.sipSave=function(){
+      var body={
+        sip_enabled:el('sipEnabled').checked,
+        sip_extension:el('sipExt').value,
+        sip_auth_id:el('sipAuthId').value,
+        sip_auth_pass:el('sipAuthPass').value,
+        sip_registrar_host:el('sipReg').value,
+        sip_registrar_port:el('sipRegPort').value,
+        sip_sbc_host:el('sipSbc').value,
+        sip_sbc_port:el('sipSbcPort').value,
+        sip_max_secs:el('sipMax').value,
+        sip_intro:el('sipIntro').checked,
+        sip_outro:el('sipOutro').checked
+      };
+      var m=el('sipSaveMsg'); m.style.display='inline'; m.style.color='#4b7a12'; m.textContent='Opslaan…';
+      fetch('/admin/sip/save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
+        .then(function(r){return r.json();}).then(function(j){
+          el('sipAuthPass').value='';
+          m.textContent=j.ok?'Opgeslagen ✔':'Fout'; m.style.color=j.ok?'#4b7a12':'#c62828';
+          setTimeout(function(){m.style.display='none';},3000);
+          setTimeout(sipStatusPoll,1500);
+        }).catch(function(){ m.textContent='Fout'; m.style.color='#c62828'; });
+    };
+    window.sipTestConn=function(){
+      var box=el('sipConnRes'); box.style.display='block'; box.style.background='#fff8e1'; box.style.color='#7a5c00';
+      box.innerHTML='<span class="mi mi-sm" style="vertical-align:middle">autorenew</span> Testen… (max ~10 sec)';
+      fetch('/admin/sip/test_connection',{method:'POST'}).then(function(r){return r.json();}).then(function(j){
+        var ok=j.ok, reg=j.registered;
+        box.style.background = ok ? '#e8f5e9' : (reg===false ? '#fdecea' : '#fff8e1');
+        box.style.color      = ok ? '#1b5e20' : (reg===false ? '#b71c1c' : '#7a5c00');
+        var icon = ok ? 'check_circle' : (reg===false ? 'error' : 'warning');
+        box.innerHTML='<span class="mi mi-sm" style="vertical-align:middle">'+icon+'</span> '+(j.msg||'Onbekend resultaat')+(j.dns?('<br><span style="opacity:.7">Registrar DNS: '+j.dns+'</span>'):'');
+      }).catch(function(){ box.style.background='#fdecea'; box.style.color='#b71c1c'; box.textContent='Test mislukt.'; });
+    };
+    window.sipTest=function(){
+      if(!confirm('Nu een testomroep over de winkelspeakers afspelen?')) return;
+      var m=el('sipTestMsg'); m.style.display='inline'; m.style.color='#4b7a12';
+      m.textContent='Speelt af… (dempen → intro → test → outro)';
+      fetch('/admin/sip/test',{method:'POST'}).then(function(r){return r.json();}).then(function(j){
+        m.textContent=j.ok?'Testomroep gestart ✔':(j.error||'Fout'); m.style.color=j.ok?'#4b7a12':'#c62828';
+        setTimeout(function(){m.style.display='none';},6000);
+      }).catch(function(){ m.textContent='Fout'; m.style.color='#c62828'; });
+    };
+    sipStatusPoll(); setInterval(sipStatusPoll,5000);
+  })();
+  </script>
+</div>
+
 <div class="bpanel" data-panel="ip">
   <style>
   .ip-row{border:1px solid var(--stroke);border-radius:12px;background:#fff;padding:14px;margin-bottom:12px}

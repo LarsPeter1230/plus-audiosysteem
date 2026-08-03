@@ -45,7 +45,7 @@ say "Systeempakketten installeren (sudo)..."
 sudo apt-get update -qq || true
 sudo apt-get install -y \
   python3 python3-venv python3-pip git curl ffmpeg alsa-utils \
-  libasound2-plugin-equal caps || warn "Sommige pakketten ontbreken mogelijk (controleer handmatig)."
+  libasound2-plugin-equal caps baresip || warn "Sommige pakketten ontbreken mogelijk (controleer handmatig)."
 
 # 2. Python venv + dependencies
 say "Python virtualenv + dependencies..."

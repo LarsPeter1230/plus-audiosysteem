@@ -6606,19 +6606,35 @@ def _sip_ctrl_loop():
             _sip_sock = None
         time.sleep(1)
 
+def _sip_ext_in_token(digits, token):
+    """Valt een (genummerd) toestel binnen één allowlist-item?
+    Item is óf een enkel nummer ('101') óf een bereik ('301-309')."""
+    token = (token or "").strip()
+    if "-" in token:                             # bereik lo-hi (inclusief)
+        a, _, b = token.partition("-")
+        a = re.sub(r"\D", "", a); b = re.sub(r"\D", "", b)
+        if a.isdigit() and b.isdigit() and digits.isdigit():
+            lo, hi = int(a), int(b)
+            if lo > hi: lo, hi = hi, lo
+            return lo <= int(digits) <= hi
+        return False
+    t = re.sub(r"\D", "", token)                 # enkel nummer (exact)
+    return bool(t) and t == digits
+
 def _sip_call_allowed(ext):
     """Mag dit toestel omroepen?
     - meer dan 3 cijfers = buitenlijn → NOOIT toegestaan (harde veiligheidsregel);
     - lege allowlist = alle interne toestellen toegestaan;
-    - anders alleen als het toestel in de allowlist staat."""
+    - anders alleen als het toestel in een item/bereik van de allowlist valt."""
     digits = re.sub(r"\D", "", ext or "")
     if len(digits) > 3:                          # buitenlijn → altijd weigeren
         return False
     allowed = settings.get("sip_allowed_exts") or []
     if not allowed:                              # niks ingevuld → alles (intern) mag
         return True
-    e = (ext or "").strip()
-    return e in allowed or (digits and digits in [re.sub(r"\D", "", a) for a in allowed])
+    if not digits:
+        return False
+    return any(_sip_ext_in_token(digits, tok) for tok in allowed)
 
 def _sip_handle_call(peer):
     """Inkomend gesprek → dempen, intro, aannemen, live over de speakers,
@@ -6919,7 +6935,12 @@ def admin_sip_save():
     except Exception: settings["sip_gain"] = 100
     raw = d.get("sip_allowed_exts", "")
     parts = raw if isinstance(raw, list) else re.split(r"[\s,;]+", str(raw or ""))
-    settings["sip_allowed_exts"] = [p.strip() for p in parts if p and p.strip()][:50]
+    clean = []
+    for p in parts:                              # alleen '123' of '123-456' behouden
+        p = (p or "").strip().replace(" ", "")
+        if re.fullmatch(r"\d{1,4}(-\d{1,4})?", p):
+            clean.append(p)
+    settings["sip_allowed_exts"] = clean[:50]
     settings["sip_intro"] = bool(d.get("sip_intro", True))
     settings["sip_outro"] = bool(d.get("sip_outro", True))
     _save_json(SETTINGS_JSON, settings)

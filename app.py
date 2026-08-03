@@ -3440,6 +3440,7 @@ def render_layout(body_html, tab):
         TTS_LOCK=locks.get("tts", False),
         idle_redirect=bool(u.get("idle_redirect")) if u else False,
         idle_redirect_secs=int(u.get("idle_redirect_secs", 60)) if u else 60,
+        sip_alert=bool(u.get("sip_alert")) if u else False,
     )
 
 # ──────────────────────────────────────────────
@@ -3974,6 +3975,11 @@ def _edit_user_html(uname, err=None, ok=None):
             <div class="label">Na hoeveel seconden inactiviteit</div>
             <input class="input" type="number" name="idle_redirect_secs" min="15" max="3600" value="{int(u.get('idle_redirect_secs',60))}" style="max-width:140px">
           </div>
+          <div class="form-card">
+            <h3>Live omroep-melding</h3>
+            <label class="switch-row"><input type="checkbox" name="sip_alert" value="1" {"checked" if u.get("sip_alert") else ""}> <span>Toon een <strong>volledige melding met stopknop</strong> zodra iemand live omroept via de telefoon</span></label>
+            <div class="help" style="margin:6px 0 0">Handig aan de <strong>servicebalie</strong>: tijdens een live omroep (Beheer &rarr; Live omroep) verschijnt op elk scherm van deze gebruiker meteen wélk toestel omroept, met een knop om de omroep direct te stoppen.</div>
+          </div>
         </div>
 
         <div id="euSave" style="margin-bottom:16px">
@@ -4086,6 +4092,7 @@ def save_user(uname):
         users[uname]["tts_voices"]       = "all" if tts_voices_all else tts_voice_ids
         # Inactiviteit → terug naar de Muziek-pagina (per gebruiker aan/uit)
         users[uname]["idle_redirect"]    = request.form.get("idle_redirect") == "1"
+        users[uname]["sip_alert"]        = request.form.get("sip_alert") == "1"
         try:    _irs = max(15, min(3600, int(request.form.get("idle_redirect_secs") or 60)))
         except Exception: _irs = 60
         users[uname]["idle_redirect_secs"] = _irs
@@ -6376,7 +6383,15 @@ _sip_sock       = None
 _sip_send_lock  = threading.Lock()
 _sip_call_ended = threading.Event()
 _sip_state = {"running": False, "registered": False, "in_call": False,
-              "last_event": "", "last_peer": ""}
+              "last_event": "", "last_peer": "", "caller_ext": "", "since": 0.0}
+
+def _sip_peer_ext(peer):
+    """Haal het extensienummer/gebruikersdeel uit een SIP-URI, bijv.
+    'sip:104@pluskoelhuis.my3cx.nl' → '104' (voor logging + de melding)."""
+    if not peer:
+        return ""
+    m = re.search(r"sip:([^@;>\s]+)@", peer) or re.search(r'"?([^"<]+?)"?\s*<sip:', peer)
+    return (m.group(1).strip() if m else str(peer).strip())
 
 def _sip_cfg_ok():
     """Alle vereiste velden ingevuld én ingeschakeld (en niet in demo)?"""
@@ -6513,7 +6528,15 @@ def _sip_on_message(data):
         msg = json.loads(data.decode("utf-8", "replace"))
     except Exception:
         return
-    if not isinstance(msg, dict) or not msg.get("event"):
+    if not isinstance(msg, dict):
+        return
+    # reginfo-antwoord → registratiestatus bijwerken (robuust, los van event-timing:
+    # het REGISTER_OK-event kan al afgaan vóór onze ctrl-verbinding er is).
+    if msg.get("response") and isinstance(msg.get("data"), str) and "Expires" in msg["data"]:
+        m = re.search(r"Expires\s+([0-9]+)s", msg["data"])
+        _sip_state["registered"] = bool(m and int(m.group(1)) > 0)
+        return
+    if not msg.get("event"):
         return
     typ = (msg.get("type") or "").upper()
     _sip_state["last_event"] = typ
@@ -6547,10 +6570,14 @@ def _sip_ctrl_loop():
         buf = b""
         try:
             s.settimeout(1.0)
+            last_poll = 0.0
             while True:
                 with _sip_proc_lock:
                     if not (_sip_proc and _sip_proc.poll() is None):
                         break
+                now = time.time()
+                if now - last_poll > 5:          # registratiestatus periodiek uitlezen
+                    _sip_send("reginfo"); last_poll = now
                 try:
                     chunk = s.recv(4096)
                     if not chunk:
@@ -6591,10 +6618,14 @@ def _sip_handle_call(peer):
         _sip_send("hangup"); return
     prev_bg = get_bg_volume_pct()
     t_duck  = None
+    ext = _sip_peer_ext(peer)
     try:
-        _sip_state["in_call"] = True
+        _sip_state["in_call"]   = True
+        _sip_state["caller_ext"] = ext
+        _sip_state["since"]     = time.time()
         _sip_call_ended.clear()
-        log_action("Live omroep gestart (beller %s)" % (peer or "?"), source="sip")
+        log_action("Live omroep gestart — toestel %s" % (ext or "onbekend"),
+                   source="sip", user=("toestel %s" % ext if ext else "SIP"))
         t_duck = threading.Thread(target=pi_duck, daemon=True)
         if PI_ENABLED:
             t_duck.start()
@@ -6623,8 +6654,10 @@ def _sip_handle_call(peer):
             threading.Thread(target=pi_unduck, daemon=True).start()
         try: _unduck_local(prev_bg)
         except Exception: pass
-        _sip_state["in_call"] = False
-        log_action("Live omroep beëindigd", source="sip")
+        _sip_state["in_call"]   = False
+        _sip_state["caller_ext"] = ""
+        log_action("Live omroep beëindigd — toestel %s" % (ext or "onbekend"),
+                   source="sip", user=("toestel %s" % ext if ext else "SIP"))
         duck_lock.release()
 
 def _sip_probe_register(timeout=10):
@@ -6688,8 +6721,15 @@ def _sip_probe_register(timeout=10):
             except Exception: time.sleep(0.4)
         registered, failmsg = None, ""
         if sock:
-            sock.settimeout(1.0); buf = b""
+            sock.settimeout(1.0); buf = b""; last_poll = 0.0
             while time.time() < deadline:
+                now = time.time()
+                if now - last_poll > 1.5:        # registratiestatus opvragen
+                    try:
+                        jj = json.dumps({"command": "reginfo"})
+                        sock.sendall(("%d:%s," % (len(jj), jj)).encode())
+                    except Exception: pass
+                    last_poll = now
                 try:    chunk = sock.recv(4096)
                 except socket.timeout: continue
                 except Exception: break
@@ -6706,13 +6746,20 @@ def _sip_probe_register(timeout=10):
                     payload = buf[ci + 1: ci + 1 + ln]; buf = buf[ci + 1 + ln + 1:]
                     try:    msg = json.loads(payload.decode("utf-8", "replace"))
                     except Exception: msg = None
-                    if isinstance(msg, dict) and msg.get("event"):
+                    if not isinstance(msg, dict):
+                        continue
+                    if msg.get("event"):
                         t = (msg.get("type") or "").upper()
                         if t == "REGISTER_OK":
                             registered = True
                         elif t == "REGISTER_FAIL":
                             registered = False; failmsg = str(msg.get("param") or "")
-                if registered is not None: break
+                    elif msg.get("response") and isinstance(msg.get("data"), str) and "Expires" in msg["data"]:
+                        mm = re.search(r"Expires\s+([0-9]+)s", msg["data"])
+                        if mm and int(mm.group(1)) > 0:
+                            registered = True
+                if registered is True or (registered is False and failmsg):
+                    break
             try: sock.close()
             except Exception: pass
         if registered is True:
@@ -6793,10 +6840,42 @@ def api_sip_status():
         in_call=_sip_state.get("in_call", False),
         last_event=_sip_state.get("last_event", ""),
         last_peer=_sip_state.get("last_peer", ""),
+        caller_ext=_sip_state.get("caller_ext", ""),
         extension=s.get("sip_extension", ""),
         registrar=s.get("sip_registrar_host", ""),
         sbc=s.get("sip_sbc_host", ""),
     )
+
+@app.route("/api/sip/live")
+def api_sip_live():
+    """Lichtgewicht live-status voor de melding bij de balie (elke ingelogde
+    gebruiker mag dit uitlezen; alleen wie het vinkje aan heeft, polt 'm)."""
+    if not is_logged_in():
+        abort(403)
+    in_call = bool(_sip_state.get("in_call"))
+    since = _sip_state.get("since", 0.0) or 0.0
+    return jsonify(
+        in_call=in_call,
+        caller_ext=_sip_state.get("caller_ext", "") if in_call else "",
+        since_secs=int(max(0.0, time.time() - since)) if (in_call and since) else 0,
+    )
+
+@app.route("/api/sip/hangup", methods=["POST"])
+def api_sip_hangup():
+    """Stop een lopende live omroep (stopknop bij de balie). Toegestaan voor
+    admins en gebruikers met het live-omroep-melding-vinkje aan."""
+    if not is_logged_in():
+        abort(403)
+    u = current_user()
+    if not (is_admin() or u.get("sip_alert")):
+        abort(403)
+    if not _sip_state.get("in_call"):
+        return jsonify(ok=True, note="geen actieve omroep")
+    _sip_send("hangup")
+    log_action("Live omroep gestopt via de melding (toestel %s)"
+               % (_sip_state.get("caller_ext") or "onbekend"),
+               source="sip", user=current_username(), ip=client_ip())
+    return jsonify(ok=True)
 
 @app.route("/admin/sip/save", methods=["POST"])
 def admin_sip_save():

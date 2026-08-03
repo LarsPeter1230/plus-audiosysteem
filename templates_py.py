@@ -833,6 +833,48 @@ try {
 // Fallback: na 2 seconden toch navigeren als sluiten niet lukt
 setTimeout(function(){ window.location.href = dest; }, 2000);
 </script>
+{% if sip_alert %}
+<div id="sipLiveOverlay" style="display:none;position:fixed;inset:0;z-index:2147483000;background:rgba(0,0,0,.58);align-items:center;justify-content:center;padding:20px">
+  <div style="background:#fff;border-radius:20px;max-width:440px;width:100%;padding:30px 26px;text-align:center;box-shadow:0 24px 70px rgba(0,0,0,.45);border-top:7px solid #c62828">
+    <div style="width:70px;height:70px;border-radius:50%;background:#fdecea;display:flex;align-items:center;justify-content:center;margin:0 auto 16px">
+      <span class="mi" style="font-size:38px;color:#c62828;animation:sipLivePulse 1s infinite">campaign</span>
+    </div>
+    <div style="font-size:13px;letter-spacing:.09em;color:#c62828;font-weight:800">&#9679; LIVE OMROEP BEZIG</div>
+    <div style="font-size:23px;font-weight:800;margin:6px 0 2px;color:#1a1a1a">Toestel <span id="sipLiveExt">&mdash;</span></div>
+    <div id="sipLiveSince" style="margin:0 0 20px;color:#666;font-size:14px">roept nu om over de speakers</div>
+    <button type="button" id="sipLiveStopBtn" onclick="sipLiveStop(this)" style="width:100%;padding:16px;border:0;border-radius:13px;background:#c62828;color:#fff;font-size:17px;font-weight:800;cursor:pointer"><span class="mi" style="vertical-align:middle">stop_circle</span> Omroep stoppen</button>
+    <div id="sipLiveMsg" style="margin-top:11px;font-size:13px;color:#c62828;display:none"></div>
+  </div>
+</div>
+<style>@keyframes sipLivePulse{0%,100%{opacity:1}50%{opacity:.3}}</style>
+<script>
+(function(){
+  var ov=document.getElementById('sipLiveOverlay');
+  function fmt(s){ s=Math.max(0,Math.floor(s)); var m=Math.floor(s/60), ss=s%60; return m+':'+(ss<10?'0':'')+ss; }
+  window.sipLiveStop=function(btn){
+    btn.disabled=true;
+    var m=document.getElementById('sipLiveMsg'); m.style.display='block'; m.textContent='Stoppen\\u2026';
+    fetch('/api/sip/hangup',{method:'POST'}).then(function(r){return r.json();}).then(function(j){
+      m.textContent=j.ok?'Gestopt.':(j.error||'Kon niet stoppen'); setTimeout(function(){btn.disabled=false;},1500);
+    }).catch(function(){ m.textContent='Kon niet stoppen'; btn.disabled=false; });
+  };
+  function poll(){
+    fetch('/api/sip/live',{cache:'no-store'}).then(function(r){return r.json();}).then(function(j){
+      if(j && j.in_call){
+        document.getElementById('sipLiveExt').textContent=j.caller_ext||'?';
+        document.getElementById('sipLiveSince').textContent='roept nu om over de speakers'+(j.since_secs?(' \\u00b7 '+fmt(j.since_secs)):'');
+        ov.style.display='flex';
+      } else {
+        ov.style.display='none';
+        var m=document.getElementById('sipLiveMsg'); if(m){ m.style.display='none'; }
+        var b=document.getElementById('sipLiveStopBtn'); if(b){ b.disabled=false; }
+      }
+    }).catch(function(){});
+  }
+  poll(); setInterval(poll, 2000);
+})();
+</script>
+{% endif %}
 </body>
 </html>"""
 
@@ -3457,7 +3499,7 @@ BEHEER_BODY = """
       fetch('/api/sip/status',{cache:'no-store'}).then(function(r){return r.json();}).then(function(j){
         var dot=el('sipDot'), txt=el('sipStatusTxt'), col, msg;
         if(!j.enabled){ col='#9aa0a6'; msg='Uitgeschakeld.'; }
-        else if(j.in_call){ col='#1769aa'; msg='Bezig met een live omroep' + (j.last_peer?(' — '+j.last_peer):'') + '…'; }
+        else if(j.in_call){ col='#1769aa'; msg='Bezig met een live omroep' + (j.caller_ext?(' — toestel '+j.caller_ext):'') + '…'; }
         else if(j.registered){ col='#2e7d32'; msg='Geregistreerd bij de SBC — bel '+(j.extension||'de extensie')+' om om te roepen.'; }
         else if(j.running){ col='#f9a825'; msg='Verbinden met de SBC… (nog niet geregistreerd — controleer firewall/3CX)'; }
         else if(!j.configured){ col='#9aa0a6'; msg='Nog niet volledig ingevuld.'; }

@@ -183,6 +183,7 @@ SETTINGS_DEFAULTS = {
     "sip_max_secs": 300,            # max. omroepduur (veiligheid tegen 'open microfoon')
     "sip_intro": True,              # intro (preroll) vóór de live omroep
     "sip_outro": True,              # outro ná de live omroep
+    "sip_gain": 100,                # volume van de beller over de speakers (%, via PST-softvol; 100 = normaal)
 }
 settings = _load_json(SETTINGS_JSON, dict(SETTINGS_DEFAULTS))
 for _k, _v in SETTINGS_DEFAULTS.items():   # nieuwe default-sleutels invullen (bestaande blijven)
@@ -5112,6 +5113,7 @@ ctl.eq_spot {{ type equal; controls "{HOME}/.eq_spot.bin" }}
 pcm.eq_spot_plug {{ type plug; slave.pcm "eq_spot" }}
 pcm.spot {{ type softvol; slave.pcm "eq_spot_plug"; control {{ name "SPOT"; card {pc} }}; min_dB -51.0; max_dB 0.0 }}
 ctl.spot {{ type hw; card {pc} }}
+pcm.null_sink {{ type null }}
 """
 
 @app.route("/api/audio/apply", methods=["POST"])
@@ -6444,7 +6446,7 @@ def _render_sip_config():
            "ctrl_tcp_listen  %s:%d\n"
            "audio_player     alsa,pst\n"
            "audio_source     aufile,%s\n"
-           "audio_alert      alsa,pst\n"
+           "audio_alert      alsa,null_sink\n"   # beltoon niet naar de speakers
            % (SIP_SIP_PORT, SIP_CTRL_HOST, SIP_CTRL_PORT, SIP_SILENCE))
     with open(os.path.join(SIP_DIR, "config"), "w") as f:
         f.write(cfg)
@@ -6630,7 +6632,7 @@ def _sip_handle_call(peer):
         if PI_ENABLED:
             t_duck.start()
         _duck_local(prev_bg)                     # Spotify + PLUS Radio wegfaden
-        set_pst_gain(100)
+        set_pst_gain(max(0, min(200, int(settings.get("sip_gain", 100) or 100))))
         if PI_ENABLED and t_duck is not None:
             t_duck.join(timeout=PI_DUCK_WAIT)
         if settings.get("sip_intro", True):
@@ -6800,7 +6802,7 @@ def _sip_test_announce():
         if PI_ENABLED:
             t_duck.start()
         _duck_local(prev_bg)
-        set_pst_gain(100)
+        set_pst_gain(max(0, min(200, int(settings.get("sip_gain", 100) or 100))))
         if PI_ENABLED and t_duck is not None:
             t_duck.join(timeout=PI_DUCK_WAIT)
         if settings.get("sip_intro", True):
@@ -6899,6 +6901,8 @@ def admin_sip_save():
     settings["sip_sbc_port"]       = _port("sip_sbc_port")
     try:    settings["sip_max_secs"] = max(10, min(1800, int(d.get("sip_max_secs") or 300)))
     except Exception: settings["sip_max_secs"] = 300
+    try:    settings["sip_gain"] = max(0, min(200, int(d.get("sip_gain") or 100)))
+    except Exception: settings["sip_gain"] = 100
     settings["sip_intro"] = bool(d.get("sip_intro", True))
     settings["sip_outro"] = bool(d.get("sip_outro", True))
     _save_json(SETTINGS_JSON, settings)

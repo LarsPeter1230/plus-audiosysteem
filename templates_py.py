@@ -3467,6 +3467,13 @@ BEHEER_BODY = """
         <input class="input" type="number" id="sipMax" value="{{ settings.sip_max_secs or 300 }}">
         <div class="help">Veiligheid tegen een &laquo;open microfoon&raquo;: het gesprek stopt automatisch na deze tijd.</div></div>
     </div>
+    <div class="row">
+      <div class="col">
+        <div class="label">Volume van de beller over de speakers: <b><span id="sipGainVal">{{ settings.sip_gain or 100 }}</span>%</b></div>
+        <input type="range" id="sipGain" min="0" max="200" step="5" value="{{ settings.sip_gain or 100 }}" oninput="document.getElementById('sipGainVal').textContent=this.value" style="width:100%;accent-color:var(--green)">
+        <div class="help">100% = normaal. Klinkt de omroeper te zacht? Zet hoger (bijv. 130&ndash;160%). Te hard/vervormd? Lager. Werkt bij het eerstvolgende telefoontje.</div>
+      </div>
+    </div>
     <div style="height:6px"></div>
     <label class="switch-row"><input type="checkbox" id="sipIntro" {{ 'checked' if settings.sip_intro else '' }}> <span>Intro afspelen vóór de omroep</span></label>
     <label class="switch-row"><input type="checkbox" id="sipOutro" {{ 'checked' if settings.sip_outro else '' }}> <span>Outro afspelen ná de omroep</span></label>
@@ -3518,6 +3525,7 @@ BEHEER_BODY = """
         sip_sbc_host:el('sipSbc').value,
         sip_sbc_port:el('sipSbcPort').value,
         sip_max_secs:el('sipMax').value,
+        sip_gain:el('sipGain').value,
         sip_intro:el('sipIntro').checked,
         sip_outro:el('sipOutro').checked
       };

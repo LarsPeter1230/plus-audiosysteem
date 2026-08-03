@@ -184,6 +184,7 @@ SETTINGS_DEFAULTS = {
     "sip_intro": True,              # intro (preroll) vóór de live omroep
     "sip_outro": True,              # outro ná de live omroep
     "sip_gain": 100,                # volume van de beller over de speakers (%, via PST-softvol; 100 = normaal)
+    "sip_allowed_exts": [],         # toegestane extensies (leeg = alle interne); buitenlijn (>3 cijfers) altijd geweigerd
 }
 settings = _load_json(SETTINGS_JSON, dict(SETTINGS_DEFAULTS))
 for _k, _v in SETTINGS_DEFAULTS.items():   # nieuwe default-sleutels invullen (bestaande blijven)
@@ -6605,16 +6606,35 @@ def _sip_ctrl_loop():
             _sip_sock = None
         time.sleep(1)
 
+def _sip_call_allowed(ext):
+    """Mag dit toestel omroepen?
+    - meer dan 3 cijfers = buitenlijn → NOOIT toegestaan (harde veiligheidsregel);
+    - lege allowlist = alle interne toestellen toegestaan;
+    - anders alleen als het toestel in de allowlist staat."""
+    digits = re.sub(r"\D", "", ext or "")
+    if len(digits) > 3:                          # buitenlijn → altijd weigeren
+        return False
+    allowed = settings.get("sip_allowed_exts") or []
+    if not allowed:                              # niks ingevuld → alles (intern) mag
+        return True
+    e = (ext or "").strip()
+    return e in allowed or (digits and digits in [re.sub(r"\D", "", a) for a in allowed])
+
 def _sip_handle_call(peer):
     """Inkomend gesprek → dempen, intro, aannemen, live over de speakers,
     outro, muziek herstellen. Serieel met presets/TTS via duck_lock."""
+    ext = _sip_peer_ext(peer)
+    if not _sip_call_allowed(ext):               # buitenlijn of niet-toegestaan toestel
+        _sip_send("hangup")
+        log_action("Live omroep geweigerd — toestel %s (niet toegestaan / buitenlijn)"
+                   % (ext or "onbekend"), source="sip")
+        return
     if _sip_state.get("in_call") or not _sip_cfg_ok():
         _sip_send("hangup"); return
     if not duck_lock.acquire(timeout=2):         # er loopt al een omroep → bezet
         _sip_send("hangup"); return
     prev_bg = get_bg_volume_pct()
     t_duck  = None
-    ext = _sip_peer_ext(peer)
     try:
         _sip_state["in_call"]   = True
         _sip_state["caller_ext"] = ext
@@ -6897,6 +6917,9 @@ def admin_sip_save():
     except Exception: settings["sip_max_secs"] = 300
     try:    settings["sip_gain"] = max(0, min(200, int(d.get("sip_gain") or 100)))
     except Exception: settings["sip_gain"] = 100
+    raw = d.get("sip_allowed_exts", "")
+    parts = raw if isinstance(raw, list) else re.split(r"[\s,;]+", str(raw or ""))
+    settings["sip_allowed_exts"] = [p.strip() for p in parts if p and p.strip()][:50]
     settings["sip_intro"] = bool(d.get("sip_intro", True))
     settings["sip_outro"] = bool(d.get("sip_outro", True))
     _save_json(SETTINGS_JSON, settings)

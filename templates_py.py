@@ -3479,6 +3479,10 @@ BEHEER_BODY = """
     <label class="switch-row"><input type="checkbox" id="sipOutro" {{ 'checked' if settings.sip_outro else '' }}> <span>Outro afspelen ná de omroep</span></label>
     <div class="help" style="margin:6px 0 14px">Gebruikt dezelfde intro/outro als je presets en TTS (uploadbaar onder <b>Audio</b>).</div>
 
+    <div class="label">Toegestane extensies</div>
+    <input class="input" id="sipAllowed" placeholder="bijv. 321, 101, 105  (leeg = alle interne toestellen)" autocomplete="off" value="{{ (settings.sip_allowed_exts or [])|join(', ') }}">
+    <div class="help" style="margin:4px 0 16px">Alleen deze toestellen mogen omroepen &mdash; <b>leeg = alle interne toestellen</b>. Een <b>buitenlijn wordt altijd geweigerd</b> (alles met meer dan 3 cijfers), ook als 'ie hier zou staan.</div>
+
     <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
       <button type="button" class="btn btn-primary btn-inline" style="width:auto" onclick="sipSave()"><span class="mi">save</span> Opslaan</button>
       <span id="sipSaveMsg" style="font-size:13px;display:none"></span>
@@ -3526,6 +3530,7 @@ BEHEER_BODY = """
         sip_sbc_port:el('sipSbcPort').value,
         sip_max_secs:el('sipMax').value,
         sip_gain:el('sipGain').value,
+        sip_allowed_exts:el('sipAllowed').value,
         sip_intro:el('sipIntro').checked,
         sip_outro:el('sipOutro').checked
       };

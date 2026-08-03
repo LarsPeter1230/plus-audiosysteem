@@ -6440,8 +6440,9 @@ def _render_sip_config():
            "audio_player     alsa,pst\n"
            "audio_source     alsa,null_src\n"    # eenrichting: stilte op elke codec-rate
            "audio_alert      alsa,null_sink\n"   # beltoon niet naar de speakers
-           "audio_buffer     20-40\n"            # kleinere afspeelbuffer → minder vertraging
-           "jitter_buffer_delay  2-4\n"          # kleinere jitterbuffer (LAN) → minder vertraging
+           "auplay_srate     48000\n"            # matcht de dmix-rate (geen extra resample-stap)
+           "audio_buffer     60-120\n"           # veilige buffer (geen onderloop/kraak)
+           "jitter_buffer_delay  4-8\n"          # veilige jitterbuffer (LAN)
            % (SIP_SIP_PORT, SIP_CTRL_HOST, SIP_CTRL_PORT))
     with open(os.path.join(SIP_DIR, "config"), "w") as f:
         f.write(cfg)

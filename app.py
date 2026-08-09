@@ -142,6 +142,7 @@ SETTINGS_DEFAULTS = {
     "user_rules": {},
     "pi_duck_level": 0,   # achtergrondniveau tijdens omroep (0 = volledig stil)
     "spotify_control": False,  # aan = go-librespot-modus (transportknoppen + seek)
+    "spotify_source": "omroepweb",  # Spotify-bron: "omroepweb" (go-librespot/SPOT) of "gui" (desktop-app/Automix, GUI-mixer)
     "rca_autostart": True,     # RCA (PLUS Radio) automatisch starten bij opstart service/VM
     "rca_spotify_auto": True,  # RCA automatisch uit als Spotify speelt, weer aan na 30s stilte
     "lisa_enabled": True,      # PLUS Radio now-playing via de Streamit Lisa (telnet)
@@ -479,6 +480,55 @@ def _vm_spotify_playing() -> bool:
     """True als de lokale VM go-librespot nu een nummer speelt (1s gecachet)."""
     d = _vm_glr_status()
     return bool(d.get("track") and not d.get("stopped") and not d.get("paused"))
+
+# ── Spotify-desktop-app (Automix) op de VM: MPRIS-besturing via D-Bus ──
+# De desktop-app draait in de persistente GUI-sessie (systemd --user, zelfde
+# user 'radio') en levert MPRIS op de sessie-bus. app.py kan die bus dus
+# rechtstreeks benaderen. Alles defensief: ontbreekt de app/bus → stille no-op.
+_GUI_MPRIS_DEST = "org.mpris.MediaPlayer2.spotify"
+_GUI_MPRIS_PATH = "/org/mpris/MediaPlayer2"
+
+def _gui_bus_env():
+    env = dict(os.environ)
+    env.setdefault("DBUS_SESSION_BUS_ADDRESS",
+                   "unix:path=/run/user/%d/bus" % os.getuid())
+    return env
+
+def _gui_mpris(method: str) -> bool:
+    """Roep een MPRIS Player-methode (Play/Pause/PlayPause/Next/Previous) aan op
+    de Spotify-desktop-app. True bij succes."""
+    if method not in ("Play", "Pause", "PlayPause", "Next", "Previous", "Stop"):
+        return False
+    try:
+        p = subprocess.run(
+            ["gdbus", "call", "--session", "--dest", _GUI_MPRIS_DEST,
+             "--object-path", _GUI_MPRIS_PATH,
+             "--method", "org.mpris.MediaPlayer2.Player." + method],
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+            timeout=4, env=_gui_bus_env())
+        return p.returncode == 0
+    except Exception:
+        return False
+
+def _gui_spotify_status() -> str:
+    """'Playing' | 'Paused' | 'Stopped' | '' (app niet bereikbaar)."""
+    try:
+        p = subprocess.run(
+            ["gdbus", "call", "--session", "--dest", _GUI_MPRIS_DEST,
+             "--object-path", _GUI_MPRIS_PATH,
+             "--method", "org.freedesktop.DBus.Properties.Get",
+             "org.mpris.MediaPlayer2.Player", "PlaybackStatus"],
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+            timeout=4, env=_gui_bus_env())
+        if p.returncode != 0:
+            return ""
+        m = re.search(r"'(Playing|Paused|Stopped)'", p.stdout or "")
+        return m.group(1) if m else ""
+    except Exception:
+        return ""
+
+def _gui_spotify_playing() -> bool:
+    return _gui_spotify_status() == "Playing"
 
 def _glr_np_from_status(d: dict):
     """Map go-librespot /status → het now-playing-dictformaat dat current_state,
@@ -2207,6 +2257,9 @@ MIXER_BG  = "BG"
 MIXER_PST = "PST"
 MIXER_PCM = "PCM"
 MIXER_SPOT = "SPOT"   # softvol voor Spotify (lokale VM go-librespot) → mee-ducken bij omroep
+MIXER_GUI  = "GUI"    # softvol voor de Spotify-desktop-app (Automix, via ~/.asound-gui.conf)
+                      # → mee-ducken bij omroep, PRECIES zoals SPOT. Bestaat pas zodra de
+                      #   desktop-app audio heeft geopend; alle amixer-calls staan in try/except.
 
 _bg_muted      = False
 _bg_lock       = threading.Lock()
@@ -2393,8 +2446,10 @@ def _rca_spotify_auto_tick():
     if _comm_playing:
         return                    # klaargezette commercial speelt (Spotify gepauzeerd) → RCA met rust
     _, np = pi_snapshot()
-    # Speelt de lokale VM go-librespot (SPOT) óf de Pi? Beide tellen als "Spotify speelt".
-    playing = _vm_spotify_playing() or bool(np and np.get("state") == "playing")
+    # Speelt de lokale VM go-librespot (SPOT), de Pi, óf de desktop-app (GUI, als die
+    # de actieve bron is)? Alle drie tellen als "Spotify speelt" → RCA wijkt ervoor.
+    gui_playing = (spotify_source() == "gui") and _gui_spotify_playing()
+    playing = _vm_spotify_playing() or gui_playing or bool(np and np.get("state") == "playing")
     now = time.time()
     if playing:
         _RCA_AUTO["last_play"] = now
@@ -2425,18 +2480,26 @@ def _omroep_bg_level() -> int:
     return max(0, min(100, int(settings.get("pi_duck_level", PI_DUCK_DEFAULT))))
 
 _spot_vol_before = 80   # SPOT-stand (cast-volume) om na een omroep te herstellen
+_gui_vol_before  = 80   # GUI-stand (Spotify-desktop/Automix) om na een omroep te herstellen
 
 def _spot_duck():
-    """Spotify (lokale VM go-librespot → SPOT softvol) op omroep-niveau zetten,
-    zodat het tijdens preset/TTS/reclame óók gedempt wordt. Onthoudt de vorige
-    (cast)stand voor herstel."""
-    global _spot_vol_before
+    """Spotify op omroep-niveau zetten zodat het tijdens preset/TTS/reclame óók
+    gedempt wordt. Werkt op BEIDE Spotify-bronnen: de lokale go-librespot (SPOT)
+    én de desktop-app/Automix (GUI). Onthoudt per bron de vorige stand voor herstel."""
+    global _spot_vol_before, _gui_vol_before
+    lvl = _omroep_bg_level()
     try:
         cur = get_mixer(MIXER_SPOT)[0]
-        lvl = _omroep_bg_level()
         if cur > lvl:
             _spot_vol_before = cur
         set_mixer(MIXER_SPOT, lvl)
+    except Exception:
+        pass
+    try:
+        cur = get_mixer(MIXER_GUI)[0]
+        if cur > lvl:
+            _gui_vol_before = cur
+        set_mixer(MIXER_GUI, lvl)
     except Exception:
         pass
 
@@ -2445,6 +2508,53 @@ def _spot_unduck():
         set_mixer(MIXER_SPOT, _spot_vol_before)
     except Exception:
         pass
+    try:
+        set_mixer(MIXER_GUI, _gui_vol_before)
+    except Exception:
+        pass
+
+# ── Bron-switch: waar komt de Spotify-audio in de winkel vandaan? ──
+#   "omroepweb" = door de app beheerde go-librespot ("PLUS Koelhuis", SPOT-mixer)
+#   "gui"       = de Spotify-desktop-app met Automix (GUI-mixer, bediening via RDP)
+# Bij wisselen wordt de andere bron gedempt+gepauzeerd → nooit twee Spotify's tegelijk.
+GUI_DEFAULT_VOL = 80
+
+def spotify_source() -> str:
+    return "gui" if settings.get("spotify_source") == "gui" else "omroepweb"
+
+def _apply_spotify_source(src: str):
+    """Zet mixers + pauze passend bij de gekozen bron. Volledig defensief."""
+    global _gui_vol_before
+    if src == "gui":
+        # desktop-app (Automix) hoorbaar, go-librespot stil + gepauzeerd
+        try: set_mixer(MIXER_GUI, _gui_vol_before or GUI_DEFAULT_VOL)
+        except Exception: pass
+        try: set_mixer(MIXER_SPOT, 0)
+        except Exception: pass
+        try: _glr_post("/player/pause")
+        except Exception: pass
+    else:
+        # omroepweb-bron: desktop-app stil + gepauzeerd, go-librespot hoorbaar
+        try:
+            cur = get_mixer(MIXER_GUI)[0]
+            if cur > 0: _gui_vol_before = cur      # laatste GUI-stand onthouden
+        except Exception: pass
+        try: _gui_mpris("Pause")
+        except Exception: pass
+        try: set_mixer(MIXER_GUI, 0)
+        except Exception: pass
+        try: set_mixer(MIXER_SPOT, _spot_vol_before or 80)
+        except Exception: pass
+
+def set_spotify_source(src: str) -> str:
+    src = "gui" if src == "gui" else "omroepweb"
+    settings["spotify_source"] = src
+    try: _save_json(SETTINGS_JSON, settings)
+    except Exception: pass
+    _apply_spotify_source(src)
+    log_action("Spotify-bron → %s" % ("desktop-app (Automix)" if src == "gui" else "omroepweb"),
+               source="spotify")
+    return src
 
 def _spot_hard_mute():
     """Volledig dempen via de SPOT-mute-switch (los van het volume, zodat een
@@ -2460,9 +2570,10 @@ def _spot_hard_unmute():
 _DUCK_FADE_SECS = 0.45   # in-/uitfade (BG + SPOT) rond preset/TTS-omroepen
 
 def _fade_ducking(bg_from, bg_to, spot_from, spot_to, secs=_DUCK_FADE_SECS,
-                  do_bg=True, do_spot=True):
-    """BG (PLUS Radio) én SPOT (Spotify) tegelijk geleidelijk faden, zodat een
-    preset/TTS-omroep zacht in- en uitfadet i.p.v. abrupt te schakelen."""
+                  do_bg=True, do_spot=True, gui_from=0, gui_to=0, do_gui=False):
+    """BG (PLUS Radio), SPOT (Spotify go-librespot) én GUI (Spotify-desktop/Automix)
+    tegelijk geleidelijk faden, zodat een preset/TTS-omroep zacht in- en uitfadet
+    i.p.v. abrupt te schakelen."""
     steps = max(1, int(secs / 0.03))
     for k in range(1, steps + 1):
         f = k / steps
@@ -2472,20 +2583,28 @@ def _fade_ducking(bg_from, bg_to, spot_from, spot_to, secs=_DUCK_FADE_SECS,
         if do_spot:
             try: set_mixer(MIXER_SPOT, int(round(spot_from + (spot_to - spot_from) * f)))
             except Exception: do_spot = False
-        if not (do_bg or do_spot): break
+        if do_gui:
+            try: set_mixer(MIXER_GUI, int(round(gui_from + (gui_to - gui_from) * f)))
+            except Exception: do_gui = False
+        if not (do_bg or do_spot or do_gui): break
         time.sleep(secs / steps)
 
 def _duck_local(prev_bg: int):
     """Muziek zacht wegfaden vóór een omroep (preset/TTS)."""
-    global _spot_vol_before
+    global _spot_vol_before, _gui_vol_before
     lvl = _omroep_bg_level()
     try: cur_spot = get_mixer(MIXER_SPOT)[0]
     except Exception: cur_spot = _spot_vol_before
     if cur_spot > lvl:
         _spot_vol_before = cur_spot          # caststand onthouden voor herstel
+    try: cur_gui = get_mixer(MIXER_GUI)[0]
+    except Exception: cur_gui = _gui_vol_before
+    if cur_gui > lvl:
+        _gui_vol_before = cur_gui             # GUI-stand onthouden voor herstel
     _fade_ducking(prev_bg, lvl, cur_spot, lvl,
                   do_bg=(not _bg_muted and prev_bg > lvl),
-                  do_spot=(cur_spot > lvl))
+                  do_spot=(cur_spot > lvl),
+                  gui_from=cur_gui, gui_to=lvl, do_gui=(cur_gui > lvl))
 
 def _unduck_local(prev_bg: int):
     """Muziek na de omroep weer zacht omhoog faden."""
@@ -2494,9 +2613,13 @@ def _unduck_local(prev_bg: int):
     except Exception: bg_now = lvl
     try: spot_now = get_mixer(MIXER_SPOT)[0]
     except Exception: spot_now = lvl
+    try: gui_now = get_mixer(MIXER_GUI)[0]
+    except Exception: gui_now = lvl
     _fade_ducking(bg_now, prev_bg, spot_now, _spot_vol_before,
                   do_bg=(not _bg_muted),
-                  do_spot=(_spot_vol_before > spot_now))
+                  do_spot=(_spot_vol_before > spot_now),
+                  gui_from=gui_now, gui_to=_gui_vol_before,
+                  do_gui=(_gui_vol_before > gui_now))
 
 def _fade_bg(start, end, step=8, delay=0.02):
     s = step if end > start else -abs(step)
@@ -2920,10 +3043,18 @@ def run_automation(a, test=False):
                                     log_user=name)
             elif typ == "spotify":
                 cmd = act.get("command")
-                if cmd == "volume":
-                    set_mixer(MIXER_SPOT, max(0, min(100, int(act.get("value", 50)))))
+                if cmd == "source":
+                    set_spotify_source(act.get("source", "omroepweb"))
+                elif cmd == "volume":
+                    v = max(0, min(100, int(act.get("value", 50))))
+                    set_mixer(MIXER_GUI if spotify_source() == "gui" else MIXER_SPOT, v)
                 elif cmd in ("pause", "resume", "playpause", "next", "prev", "stop"):
-                    _glr_post(f"/player/{cmd}")
+                    # Stuur naar de ACTIEVE bron: desktop-app (MPRIS) of go-librespot.
+                    if spotify_source() == "gui":
+                        _gui_mpris({"pause": "Pause", "resume": "Play", "playpause": "PlayPause",
+                                    "next": "Next", "prev": "Previous", "stop": "Stop"}[cmd])
+                    else:
+                        _glr_post(f"/player/{cmd}")
             elif typ == "webhook":
                 url = (act.get("url") or "").strip()
                 if url:
@@ -4682,6 +4813,30 @@ def api_spotify_admin_save():
     log_action("Spotify Web API-config opgeslagen", source="spotify")
     return jsonify(ok=True)
 
+@app.route("/api/spotify/source", methods=["GET", "POST"])
+def api_spotify_source():
+    """Bron-switch tussen de door-omroepweb-beheerde go-librespot en de
+    Spotify-desktop-app (Automix). GET geeft de huidige stand + GUI-status."""
+    r = login_required()
+    if r: return r
+    if request.method == "POST":
+        j = request.get_json(silent=True) or {}
+        src = set_spotify_source(j.get("source", "omroepweb"))
+        return jsonify(ok=True, source=src, gui_status=_gui_spotify_status())
+    return jsonify(source=spotify_source(), gui_status=_gui_spotify_status())
+
+@app.route("/api/spotify/gui/<cmd>", methods=["POST"])
+def api_spotify_gui(cmd):
+    """MPRIS-transport voor de Spotify-desktop-app (Automix) — bediening zonder RDP."""
+    r = login_required()
+    if r: return r
+    mp = {"play": "Play", "pause": "Pause", "playpause": "PlayPause",
+          "next": "Next", "prev": "Previous", "stop": "Stop"}.get(cmd)
+    if not mp:
+        return jsonify(ok=False, error="onbekend commando"), 400
+    ok = _gui_mpris(mp)
+    return jsonify(ok=ok, gui_status=_gui_spotify_status())
+
 @app.route("/api/spotify/search")
 def api_spotify_search():
     _sp_web_guard()
@@ -6114,7 +6269,10 @@ def _sanitize_automation(data, aid=None):
                 acts.append({"type": "wait", "seconds": max(0, min(600, int(a.get("seconds", 1))))})
             elif typ == "spotify":
                 cmd = a.get("command")
-                if cmd == "volume":
+                if cmd == "source":
+                    acts.append({"type": "spotify", "command": "source",
+                                 "source": "gui" if a.get("source") == "gui" else "omroepweb"})
+                elif cmd == "volume":
                     acts.append({"type": "spotify", "command": "volume",
                                  "value": max(0, min(100, int(a.get("value", 50))))})
                 elif cmd in ("pause", "resume", "playpause", "next", "prev", "stop"):
@@ -6362,6 +6520,23 @@ def _startup_audio():
     # 3. Opgeslagen Spotify-EQ live zetten (alsaequal; PLUS Radio-EQ zit al in RCA_CMD)
     try:
         _apply_eq_spot()
+    except Exception:
+        pass
+    # 4. Spotify-bron toepassen (boot-safety): standaard "omroepweb" → GUI-mixer op 0,
+    #    zodat de desktop-app na een reboot nooit ongevraagd de winkel in speelt.
+    try:
+        _apply_spotify_source(spotify_source())
+    except Exception:
+        pass
+    # 5. go-librespot (aparte service) ook op de audio-kernen 2-3 pinnen (best-effort),
+    #    zodat de GUI-stack op 0-1 de Spotify-stream niet kan laten haperen.
+    try:
+        if (os.cpu_count() or 0) >= 4:
+            _pids = subprocess.run(["pgrep", "-f", "go-librespot/go-librespot"],
+                                   stdout=subprocess.PIPE, text=True, timeout=3).stdout.split()
+            for _pid in _pids:
+                try: os.sched_setaffinity(int(_pid), {2, 3})
+                except Exception: pass
     except Exception:
         pass
 
@@ -6971,6 +7146,14 @@ def admin_sip_test_connection():
 
 
 if __name__ == "__main__":
+    # CPU-pinning: app.py + al zijn audio-kinderen (ffmpeg/arecord) op kernen 2-3,
+    # weg van de GUI-stack (Xvfb/x11vnc/Spotify-desktop op 0-1). Vóór de threads
+    # zodat die de affinity erven. Alleen op een 4+ vCPU-VM; defensief.
+    try:
+        if (os.cpu_count() or 0) >= 4:
+            os.sched_setaffinity(0, {2, 3})
+    except Exception:
+        pass
     threading.Thread(target=_startup_audio, daemon=True).start()
     threading.Thread(target=_lisa_loop, daemon=True).start()
     threading.Thread(target=_sip_supervisor_loop, daemon=True).start()   # baresip aan/uit + crash-herstel

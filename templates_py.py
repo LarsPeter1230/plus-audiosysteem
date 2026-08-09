@@ -1185,6 +1185,44 @@ VOLUME_BODY = """
   [data-panel="spotify"] .sp-queue-by .mi{font-size:13px;color:var(--spg)}
   </style>
   <div class="sp-brandbar"><img src="{{ spotify_logo }}" alt="Spotify"><div class="sp-tag">speelt op<br><b>{{ settings.spotify_device_name or brand.name }}</b></div></div>
+  {% if vr.spotify.transport %}
+  <style>
+    #spSrcCard .sp-src-head{font-size:13px;font-weight:600;opacity:.85;display:flex;align-items:center;gap:6px;margin-bottom:8px}
+    #spSrcCard .sp-src-btns{display:flex;gap:8px}
+    #spSrcCard .sp-src{flex:1;justify-content:center;opacity:.6}
+    #spSrcCard .sp-src.active{opacity:1;outline:2px solid var(--spg,#1db954);outline-offset:-2px}
+    #spGuiTransport{display:none;align-items:center;gap:10px;margin-top:10px}
+    #spGuiTransport .sp-gui-status{font-size:12px;opacity:.7;margin-left:auto}
+  </style>
+  <div class="vol-card" id="spSrcCard">
+    <div class="sp-src-head"><span class="mi">tune</span> Spotify-bron</div>
+    <div class="sp-src-btns">
+      <button type="button" class="btn sp-src" data-src="omroepweb" onclick="spSetSource('omroepweb')">omroepweb</button>
+      <button type="button" class="btn sp-src" data-src="gui" onclick="spSetSource('gui')"><span class="mi" style="font-size:16px">graphic_eq</span>&nbsp;Automix (desktop)</button>
+    </div>
+    <div id="spGuiTransport">
+      <button class="sp-btn" title="Vorige" onclick="spGui('prev')"><span class="mi">skip_previous</span></button>
+      <button class="sp-btn sp-play" title="Play / pauze" onclick="spGui('playpause')"><span class="mi">play_arrow</span></button>
+      <button class="sp-btn" title="Volgende" onclick="spGui('next')"><span class="mi">skip_next</span></button>
+      <span class="sp-gui-status" id="spGuiStatus"></span>
+    </div>
+    <div id="spSrcHint" style="font-size:12px;opacity:.7;margin-top:8px"></div>
+  </div>
+  <script>
+    function spRenderSource(src, guistatus){
+      document.querySelectorAll('#spSrcCard .sp-src').forEach(function(b){ b.classList.toggle('active', b.dataset.src===src); });
+      var t=document.getElementById('spGuiTransport'); if(t) t.style.display=(src==='gui')?'flex':'none';
+      var h=document.getElementById('spSrcHint'); if(h) h.textContent=(src==='gui')
+        ? 'De desktop-app (Automix) speelt in de winkel — bedien via RDP of de knoppen hierboven.'
+        : 'De door omroepweb beheerde Spotify speelt in de winkel.';
+      var gs=document.getElementById('spGuiStatus'); if(gs) gs.textContent=guistatus? ('desktop: '+guistatus):'';
+    }
+    function spLoadSource(){ fetch('/api/spotify/source').then(function(r){return r.json();}).then(function(d){ spRenderSource(d.source,d.gui_status); }).catch(function(){}); }
+    function spSetSource(src){ fetch('/api/spotify/source',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({source:src})}).then(function(r){return r.json();}).then(function(d){ spRenderSource(d.source,d.gui_status); }).catch(function(){}); }
+    function spGui(cmd){ fetch('/api/spotify/gui/'+cmd,{method:'POST'}).then(function(r){return r.json();}).then(function(d){ var gs=document.getElementById('spGuiStatus'); if(gs&&d.gui_status) gs.textContent='desktop: '+d.gui_status; }).catch(function(){}); }
+    document.addEventListener('DOMContentLoaded', spLoadSource);
+  </script>
+  {% endif %}
   <div class="vol-card">
     <div class="vol-head">
       <div class="vol-numwrap">
@@ -3914,7 +3952,7 @@ function amActSummary(a){
     if(ac.type==='volume') return 'Volume '+ac.value+'%';
     if(ac.type==='channel') return 'Kanaal '+(ac.channel==2?'Plus Easy':'Plus Main');
     if(ac.type==='tts') return 'TTS';
-    if(ac.type==='spotify') return 'Spotify: '+(ac.command||'');
+    if(ac.type==='spotify') return 'Spotify: '+(ac.command==='source'?('bron '+((ac.source==='gui')?'Automix':'omroepweb')):(ac.command||''));
     if(ac.type==='webhook') return 'Webhook';
     if(ac.type==='wait') return 'Wacht '+ac.seconds+'s';
     return ac.type;
@@ -4110,9 +4148,10 @@ function amActFields(ac,i){
       '<label class="switch-row" style="min-height:auto"><input type="checkbox" '+(ac.outro?'checked':'')+' onchange="_amEdit.actions['+i+'].outro=this.checked"> <span>outro (bel na)</span></label>'+
     '</div></div>';
   if(ac.type==='spotify'){
-    var cmds=[['pause','Pauzeren'],['resume','Hervatten'],['playpause','Play/Pauze'],['next','Volgende'],['prev','Vorige'],['stop','Stoppen'],['volume','Volume zetten']];
+    var cmds=[['pause','Pauzeren'],['resume','Hervatten'],['playpause','Play/Pauze'],['next','Volgende'],['prev','Vorige'],['stop','Stoppen'],['volume','Volume zetten'],['source','Bron kiezen']];
     var s='<select class="input" style="max-width:170px" onchange="_amEdit.actions['+i+'].command=this.value;amRenderActions()">'+cmds.map(function(c){return '<option value="'+c[0]+'" '+(ac.command===c[0]?'selected':'')+'>'+c[1]+'</option>';}).join('')+'</select>';
     if(ac.command==='volume') s+=' <input class="input" type="number" min="0" max="100" style="max-width:100px" value="'+(ac.value!=null?ac.value:50)+'" onchange="_amEdit.actions['+i+'].value=+this.value"><span class="help">%</span>';
+    if(ac.command==='source'){ var srcs=[['omroepweb','omroepweb'],['gui','Automix (desktop)']]; s+=' <select class="input" style="max-width:180px" onchange="_amEdit.actions['+i+'].source=this.value">'+srcs.map(function(c){return '<option value="'+c[0]+'" '+((ac.source||'omroepweb')===c[0]?'selected':'')+'>'+c[1]+'</option>';}).join('')+'</select>'; }
     return s;
   }
   if(ac.type==='webhook'){
@@ -4133,7 +4172,7 @@ function amActSummaryOne(ac){
   if(ac.type==='volume') return (ac.value!=null?ac.value:65)+'%';
   if(ac.type==='channel') return ac.channel==2?'Plus Easy':'Plus Main';
   if(ac.type==='tts'){ var t=(ac.text||'').trim(); return t? (t.length>40?t.slice(0,40)+'…':t) : '(nog geen tekst)'; }
-  if(ac.type==='spotify'){ var m={pause:'Pauzeren',resume:'Hervatten',playpause:'Play/Pauze',next:'Volgende',prev:'Vorige',stop:'Stoppen',volume:'Volume '+(ac.value!=null?ac.value:50)+'%'}; return m[ac.command]||ac.command||''; }
+  if(ac.type==='spotify'){ if(ac.command==='source') return 'Bron → '+((ac.source==='gui')?'Automix (desktop)':'omroepweb'); var m={pause:'Pauzeren',resume:'Hervatten',playpause:'Play/Pauze',next:'Volgende',prev:'Vorige',stop:'Stoppen',volume:'Volume '+(ac.value!=null?ac.value:50)+'%'}; return m[ac.command]||ac.command||''; }
   if(ac.type==='webhook'){ return ac.url? ((ac.method||'POST')+' '+ac.url.replace('https://','').replace('http://','').slice(0,32)) : '(geen URL)'; }
   if(ac.type==='wait') return (ac.seconds!=null?ac.seconds:5)+' sec';
   return '';

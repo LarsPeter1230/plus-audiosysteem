@@ -588,7 +588,9 @@ def pi_snapshot():
     vol, np = -1, None
     if PI_LOCAL_GLR:
         np = _glr_np_from_status(_vm_glr_status())
-        try: vol = get_mixer(MIXER_SPOT)[0]
+        # Bron-bewust: bij Automix (gui) toont/regelt de volumeschuif de GUI-mixer,
+        # anders de omroepweb-Spotify (SPOT).
+        try: vol = get_mixer(MIXER_GUI if spotify_source() == "gui" else MIXER_SPOT)[0]
         except Exception: vol = -1
         _record_track_history(np)
         with _pi_snap_lock:
@@ -5026,12 +5028,20 @@ def api_pi_sp_seek():
 
 @app.route("/api/pi/volume", methods=["POST"])
 def api_pi_volume():
+    global _gui_vol_before
     vr = _require_vol("spotify", "volume")
     if explicit_blocked():
         return jsonify(ok=False, blocked=True, reason="explicit")
     v = _clamp_vol("spotify", (request.get_json(silent=True) or {}).get("volume", 50), vr)
-    pi_set_volume(v)
-    log_action(f"Pi volume handmatig → {v}%", source="admin")
+    # Bron-bewust: bij Automix (gui) regelt de schuif de GUI-mixer (de winkelaudio),
+    # anders de omroepweb-Spotify (SPOT via pi_set_volume).
+    if spotify_source() == "gui":
+        set_mixer(MIXER_GUI, v)
+        _gui_vol_before = v          # onthoud als herstelwaarde na een omroep
+        log_action(f"Automix-volume handmatig → {v}%", source="admin")
+    else:
+        pi_set_volume(v)
+        log_action(f"Pi volume handmatig → {v}%", source="admin")
     return jsonify(ok=True)
 
 @app.route("/api/pi/mute", methods=["POST"])

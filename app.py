@@ -1259,12 +1259,15 @@ def _handle_commercial(title: str):
     global _commercial_active, _comm_on_ts, _comm_capture_used
     is_comm = _title_is_commercial(title)
     duck = settings.get("commercial_duck_spotify", True)
-    # Bron = Automix (desktop): PLUS Radio speelt niet in de winkel, dus een
-    # radio-reclame mag de Automix NIET onderbreken. De winkel-kant van de duck
-    # (rca_start + _spot_duck/GUI) overslaan; de online-stream-duck hieronder
-    # blijft wel behouden voor online luisteraars. Omroep/preset/TTS/SIP dempen
-    # Automix nog steeds gewoon — dat loopt via _duck_local, niet hierlangs.
-    if spotify_source() == "gui":
+    # Een radio-reclame mag PLUS Radio NIET in de winkel wekken wanneer:
+    #  - de bron Automix (gui) is (Automix speelt door), OF
+    #  - de RCA-automatiek uit staat = "winkel dicht / avondstand". De avond-
+    #    automatisering zet rca_spotify_auto UIT (en de ochtend weer AAN), dus
+    #    reclames laten de winkel 's avonds met rust tot de ochtend.
+    # De winkel-kant van de duck (rca_start + _spot_duck) wordt dan overgeslagen;
+    # de online-stream-duck hieronder blijft voor online luisteraars. Omroep/
+    # preset/TTS/SIP dempen de muziek nog wél (dat loopt via _duck_local).
+    if spotify_source() == "gui" or not settings.get("rca_spotify_auto", True):
         duck = False
     if is_comm and not _commercial_active:
         _commercial_active = True

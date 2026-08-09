@@ -213,6 +213,34 @@ xrdp-herstart/reboot; tot die tijd valt xrdp terug op RDP-security (verbinding w
 
 ## 9b. Fase 1 t/m 3 — UITGEVOERD 2026-08-09 (v7.10.0)
 
+### ⚠️ CORRECTIE (2026-08-09, na live test): PulseAudio is TOCH nodig
+De desktop-app kon aanvankelijk **geen enkele track spelen** ("Spotify can't play this
+right now"). Diagnose: **geen enkel Spotify-proces opende `/dev/snd`** tijdens Play →
+moderne **Chromium/CEF (waar Spotify op draait) heeft ALSA-audio-uitvoer laten vervallen
+en speelt uitsluitend via PulseAudio**. (`libasound` is wél gelinkt, maar alleen voor
+apparaat-enumeratie, niet voor output.) De eerdere §9-vondst "PipeWire/Pulse niet nodig"
+klopt dus alleen voor go-librespot, **niet** voor de desktop-app.
+
+**Oplossing (werkt, live bewezen — positie liep, Pulse sink-input aanwezig):**
+- **PulseAudio** geïnstalleerd (4 pakketten, geen pipewire) als **per-user, NIET-grijpende**
+  daemon: `~/.config/systemd/user/pulseaudio-store.service` draait `pulseaudio -n --file=~/.config/pulse/default.pa`.
+- `default.pa` laadt **géén** `module-udev-detect`/`module-detect` (pakt de kaart dus nooit
+  exclusief), alleen `module-alsa-sink device=gui sink_name=store` → schrijft naar onze
+  **`gui`-softvol → dac → dmixed** (gedeelde dmix). `ALSA_CONFIG_PATH=~/.asound-gui.conf`
+  in de service zodat "gui" resolvet. go-librespot/ffmpeg blijven ongemoeid (risico #1 dus
+  vermeden ondanks de audio-server).
+- De packaged user-units `pulseaudio.service`/`.socket` zijn **gemaskeerd** (→ /dev/null) zodat
+  er nooit een default (kaart-grijpende) Pulse autostart.
+- `spotify-gui.service`: `Requires/After=pulseaudio-store.service` + `Environment=PULSE_SERVER=unix:/run/user/1000/pulse/native`.
+- **Boot-safety:** `pulseaudio-store` heeft `ExecStartPost` die de GUI-softvol op 0% zet zodra
+  de sink 'm aanmaakt (ALSA maakt softvol-controls op 100% aan) — vóór de app kan autoplayen.
+- **Ducking blijft werken:** app.py stuurt nog steeds de `GUI`-softvol via amixer; Pulse zit
+  ervóór in de keten. Geen app.py-wijziging nodig voor deze fix.
+
+> **Automix zelf is bevestigd aanwezig** in het account: "Playlist 28" is een *Mixed playlist*
+> met BPM/Key-kolommen en een "Auto"-badge per nummer. Muziek**video's** spelen niet in deze
+> headless (GPU-loze) sessie; gebruik gewone audio-nummers/playlists — audio speelt nu correct.
+
 ### Fase 1 — GUI-softvol + geluid  ✅
 - Nieuwe softvol **`GUI`** via per-proces **`~/.asound-gui.conf`** (includet `/usr/share/alsa/alsa.conf`
   → `hwcodec/dmixed/dac/bg/spot/pst` bestaan; `default → gui → dac → dmixed`). **Geen `/etc/asound.conf`-edit**

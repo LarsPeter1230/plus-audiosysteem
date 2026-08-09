@@ -1257,6 +1257,13 @@ def _handle_commercial(title: str):
     global _commercial_active, _comm_on_ts, _comm_capture_used
     is_comm = _title_is_commercial(title)
     duck = settings.get("commercial_duck_spotify", True)
+    # Bron = Automix (desktop): PLUS Radio speelt niet in de winkel, dus een
+    # radio-reclame mag de Automix NIET onderbreken. De winkel-kant van de duck
+    # (rca_start + _spot_duck/GUI) overslaan; de online-stream-duck hieronder
+    # blijft wel behouden voor online luisteraars. Omroep/preset/TTS/SIP dempen
+    # Automix nog steeds gewoon — dat loopt via _duck_local, niet hierlangs.
+    if spotify_source() == "gui":
+        duck = False
     if is_comm and not _commercial_active:
         _commercial_active = True
         # 1. online stream zachter (op ingesteld % van normaal) — meet de zmq-duur

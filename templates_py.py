@@ -1235,12 +1235,11 @@ VOLUME_BODY = """
     <div class="vol-controls">
       {% if vr.spotify.volume %}<button class="btn vol-step" title="Zachter" onclick="piStep(-1)">−</button>
       <button class="btn vol-step" title="Harder" onclick="piStep(1)">+</button>{% endif %}
-      {% if admin %}<button class="btn btn-gold" onclick="spFixOpen()"><span class="mi">healing</span> Spotify fixen</button>
-      {% elif vr.spotify.restart %}<button class="btn btn-gold" onclick="piRestart()"><span class="mi">restart_alt</span> Spotify herstarten</button>{% endif %}
+      {% if vr.spotify.restart %}<button class="btn btn-gold" onclick="spFixOpen()"><span class="mi">healing</span> Spotify fixen</button>{% endif %}
     </div>
     <div id="piMsg" style="margin-top:6px;font-size:13px;display:none"></div>
   </div>
-  {% if admin %}
+  {% if vr.spotify.restart %}
   <div id="spFixBd" class="spfix-bd" onclick="if(event.target===this)spFixClose()">
     <div class="spfix">
       <div class="spfix-head">

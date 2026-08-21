@@ -5202,8 +5202,7 @@ def _fix_wait_healthy(timeout=15):
 def api_spotify_fix():
     """SSE: zelfherstellende Spotify-reparatie. ?step=restart|deep|rollback.
     Admin-only. Streamt live log-events naar de Spotify-fix-popup."""
-    if not is_logged_in(): abort(401)
-    if not is_admin(): abort(403)
+    _require_vol("spotify", "restart")   # login + Spotify-herstartrecht (admins hebben dit altijd)
     step = (request.args.get("step") or "restart").strip()
 
     def gen():
@@ -5230,6 +5229,10 @@ def api_spotify_fix():
                                 "msg": "Herstart klaar, maar inloggen liep niet vlot. Werkt het op je telefoon?"})
 
             elif step == "deep":
+                if not is_admin():
+                    yield _sse({"t": "log", "lvl": "warn", "msg": "Verdere reparatie (bijwerken) kan alleen een beheerder."})
+                    yield _sse({"t": "end", "result": "fail", "msg": "Vraag een beheerder om 'Spotify fixen' uit te voeren voor de diepere reparatie."})
+                    return
                 yield _sse({"t": "log", "lvl": "info", "msg": "Logs analyseren..."})
                 logtxt = _glr_recent_log(300, 400)
                 miss   = logtxt.count("missing blob")
@@ -5277,6 +5280,9 @@ def api_spotify_fix():
                                 "can_rollback": True})
 
             elif step == "rollback":
+                if not is_admin():
+                    yield _sse({"t": "end", "result": "fail", "msg": "Terugdraaien kan alleen een beheerder."})
+                    return
                 yield _sse({"t": "log", "lvl": "info", "msg": "Vorige go-librespot-versie terugzetten..."})
                 for lvl, msg in _glr_rollback():
                     yield _sse({"t": "log", "lvl": lvl, "msg": msg})

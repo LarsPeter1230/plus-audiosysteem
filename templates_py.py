@@ -1185,7 +1185,7 @@ VOLUME_BODY = """
   [data-panel="spotify"] .sp-queue-by .mi{font-size:13px;color:var(--spg)}
   </style>
   <div class="sp-brandbar"><img src="{{ spotify_logo }}" alt="Spotify"><div class="sp-tag">speelt op<br><b>{{ settings.spotify_device_name or brand.name }}</b></div></div>
-  {% if vr.spotify.transport %}
+  {% if admin and vr.spotify.transport %}
   <style>
     #spSrcCard .sp-src-head{font-size:13px;font-weight:600;opacity:.85;display:flex;align-items:center;gap:6px;margin-bottom:8px}
     #spSrcCard .sp-src-btns{display:flex;gap:8px}

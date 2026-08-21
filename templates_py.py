@@ -1235,10 +1235,119 @@ VOLUME_BODY = """
     <div class="vol-controls">
       {% if vr.spotify.volume %}<button class="btn vol-step" title="Zachter" onclick="piStep(-1)">−</button>
       <button class="btn vol-step" title="Harder" onclick="piStep(1)">+</button>{% endif %}
-      {% if vr.spotify.restart %}<button class="btn btn-gold" onclick="piRestart()"><span class="mi">restart_alt</span> Spotify herstarten</button>{% endif %}
+      {% if admin %}<button class="btn btn-gold" onclick="spFixOpen()"><span class="mi">healing</span> Spotify fixen</button>
+      {% elif vr.spotify.restart %}<button class="btn btn-gold" onclick="piRestart()"><span class="mi">restart_alt</span> Spotify herstarten</button>{% endif %}
     </div>
     <div id="piMsg" style="margin-top:6px;font-size:13px;display:none"></div>
   </div>
+  {% if admin %}
+  <div id="spFixBd" class="spfix-bd" onclick="if(event.target===this)spFixClose()">
+    <div class="spfix">
+      <div class="spfix-head">
+        <img src="{{ spotify_logo }}" alt="Spotify" class="spfix-logo">
+        <div class="spfix-htxt"><div class="spfix-title">Spotify fixen</div><div class="spfix-sub" id="spFixSub">Automatische reparatie</div></div>
+        <button class="spfix-x" onclick="spFixClose()" aria-label="Sluiten"><span class="mi">close</span></button>
+      </div>
+      <div class="spfix-log" id="spFixLog"></div>
+      <div class="spfix-ask" id="spFixAsk" style="display:none">
+        <div class="spfix-q" id="spFixQ"></div>
+        <div class="spfix-btns" id="spFixBtns"></div>
+      </div>
+    </div>
+  </div>
+  <style>
+    .spfix-bd{position:fixed;inset:0;z-index:2147483200;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.72);padding:18px}
+    .spfix-bd.on{display:flex}
+    .spfix{width:min(560px,96vw);max-height:86vh;display:flex;flex-direction:column;background:#121212;color:#fff;border:1px solid #2a2a2a;border-radius:16px;box-shadow:0 24px 80px rgba(0,0,0,.6);overflow:hidden}
+    .spfix-head{display:flex;align-items:center;gap:12px;padding:16px 18px;background:linear-gradient(180deg,#1a1a1a,#121212);border-bottom:1px solid #262626}
+    .spfix-logo{height:26px;width:auto}
+    .spfix-htxt{flex:1;min-width:0}
+    .spfix-title{font-size:18px;font-weight:800;letter-spacing:.2px}
+    .spfix-sub{font-size:12px;color:#1ed760;font-weight:700;display:flex;align-items:center;gap:7px}
+    .spfix-sub.busy::before{content:"";width:9px;height:9px;border-radius:50%;background:#1ed760;animation:spfixPulse 1s infinite}
+    .spfix-x{background:none;border:0;color:#b3b3b3;cursor:pointer;padding:6px;border-radius:8px;line-height:0}
+    .spfix-x:hover{background:#242424;color:#fff}
+    .spfix-log{flex:1;overflow-y:auto;padding:14px 16px;background:#0a0a0a;font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace;font-size:13px;line-height:1.5;min-height:130px}
+    .spfix-line{display:flex;gap:8px;padding:2px 0;white-space:pre-wrap;word-break:break-word}
+    .spfix-line .ic{flex:none;font-size:15px;line-height:1.4}
+    .spfix-line.info{color:#b3b3b3}
+    .spfix-line.ok{color:#1ed760}
+    .spfix-line.warn{color:#f0c14b}
+    .spfix-line.err{color:#ff5c5c}
+    .spfix-ask{padding:14px 16px;border-top:1px solid #262626;background:#161616}
+    .spfix-q{font-size:14px;font-weight:700;margin-bottom:12px;color:#fff}
+    .spfix-btns{display:flex;gap:10px;flex-wrap:wrap}
+    .spfix-btn{flex:1;min-width:120px;padding:13px 16px;border:0;border-radius:999px;font-size:15px;font-weight:800;cursor:pointer}
+    .spfix-btn.yes{background:#1ed760;color:#000}
+    .spfix-btn.yes:hover{background:#1fdf64}
+    .spfix-btn.no{background:#2a2a2a;color:#fff}
+    .spfix-btn.no:hover{background:#383838}
+    .spfix-btn.alt{background:#333;color:#fff;border:1px solid #555}
+    @keyframes spfixPulse{0%,100%{opacity:1}50%{opacity:.25}}
+  </style>
+  <script>
+  (function(){
+    var es=null, curStep=null;
+    var bd=document.getElementById('spFixBd');
+    function el(id){return document.getElementById(id);}
+    function busy(txt){ var s=el('spFixSub'); s.textContent=txt||'Bezig\\u2026'; s.classList.add('busy'); }
+    function idle(txt){ var s=el('spFixSub'); s.textContent=txt||''; s.classList.remove('busy'); }
+    function ics(lvl){ return {info:'chevron_right',ok:'check_circle',warn:'warning',err:'error'}[lvl]||'chevron_right'; }
+    function addLine(lvl,msg){
+      var box=el('spFixLog');
+      var d=document.createElement('div'); d.className='spfix-line '+(lvl||'info');
+      var i=document.createElement('span'); i.className='ic mi'; i.textContent=ics(lvl);
+      var t=document.createElement('span'); t.textContent=msg;
+      d.appendChild(i); d.appendChild(t); box.appendChild(d); box.scrollTop=box.scrollHeight;
+    }
+    function clearAsk(){ el('spFixAsk').style.display='none'; el('spFixBtns').innerHTML=''; el('spFixQ').textContent=''; }
+    function stopEs(){ if(es){ try{es.close();}catch(e){} es=null; } }
+    function showButtons(q,btns){
+      el('spFixQ').textContent=q||''; var wrap=el('spFixBtns'); wrap.innerHTML='';
+      btns.forEach(function(b){ var x=document.createElement('button'); x.className='spfix-btn '+(b.cls||'no'); x.textContent=b.label; x.onclick=b.fn; wrap.appendChild(x); });
+      el('spFixAsk').style.display='block';
+    }
+    function run(step){
+      curStep=step; clearAsk(); stopEs();
+      busy(step==='deep'?'Diepere diagnose\\u2026':(step==='rollback'?'Terugdraaien\\u2026':'Herstarten\\u2026'));
+      es=new EventSource('/api/spotify/fix?step='+encodeURIComponent(step));
+      es.onmessage=function(ev){
+        var d; try{d=JSON.parse(ev.data);}catch(e){return;}
+        if(d.t==='log'){ addLine(d.lvl,d.msg); }
+        else if(d.t==='end'){ stopEs(); onEnd(d); }
+      };
+      es.onerror=function(){ stopEs(); idle(''); addLine('err','Verbinding met de server verbroken.'); showButtons('',[{label:'Sluiten',cls:'no',fn:spFixClose}]); };
+    }
+    function onEnd(d){
+      if(d.result==='ask'){
+        idle('Wacht op je antwoord');
+        showButtons(d.msg,[
+          {label:'Ja, het werkt',cls:'yes',fn:success},
+          {label:'Nee, nog niet',cls:'no',fn:nextAfterNo}
+        ]);
+      } else if(d.result==='fail'){
+        idle('Reparatie afgerond');
+        var btns=[{label:'Sluiten',cls:'no',fn:spFixClose}];
+        if(d.can_rollback){ btns.unshift({label:'Vorige versie terugzetten',cls:'alt',fn:function(){ run('rollback'); }}); }
+        showButtons(d.msg,btns);
+      } else { idle(''); showButtons(d.msg||'Klaar.',[{label:'Sluiten',cls:'no',fn:spFixClose}]); }
+    }
+    function nextAfterNo(){
+      clearAsk();
+      if(curStep==='restart'){ addLine('info','\\u2500\\u2500 Diepere diagnose starten \\u2500\\u2500'); run('deep'); }
+      else if(curStep==='deep'){ addLine('info','\\u2500\\u2500 Automatische stappen uitgeput \\u2500\\u2500'); showButtons('De automatische reparatie hielp niet. Wil je terugdraaien naar de vorige go-librespot-versie?',[
+          {label:'Ja, terugdraaien',cls:'alt',fn:function(){ run('rollback'); }},
+          {label:'Sluiten',cls:'no',fn:spFixClose}
+        ]); }
+      else { showButtons('Ook dit hielp niet. Bekijk de logs of neem contact op.',[{label:'Sluiten',cls:'no',fn:spFixClose}]); }
+    }
+    function success(){ idle('Opgelost'); clearAsk(); addLine('ok','Top! Spotify Connect werkt weer.'); showButtons('',[{label:'Sluiten',cls:'yes',fn:spFixClose}]); }
+    window.spFixOpen=function(){ el('spFixLog').innerHTML=''; clearAsk(); bd.classList.add('on'); addLine('info','Spotify-reparatie gestart\\u2026'); run('restart'); };
+    window.spFixClose=function(){ stopEs(); bd.classList.remove('on'); idle(''); };
+    document.addEventListener('keydown',function(e){ if(e.key==='Escape' && bd.classList.contains('on')) spFixClose(); });
+  })();
+  </script>
+  {% endif %}
   <div class="sp-explicit" id="spExplicit"><span class="mi">explicit</span><span id="spExplicitTxt">Expliciet nummer — Spotify is gedempt. Sla het over op je telefoon.</span></div>
   <div class="sp-player" id="spPlayer" data-state="empty" data-control="0">
     <div class="sp-backdrop" id="spBackdrop"></div>

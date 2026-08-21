@@ -39,6 +39,7 @@ import os, json, re, time, threading, subprocess, signal, glob, tempfile, secret
 from datetime import datetime, date
 from urllib.parse import urlencode
 import urllib.request, urllib.error
+import hashlib, tarfile
 
 try:
     import fcntl
@@ -5075,6 +5076,231 @@ def api_pi_restart_raspotify():
     _require_vol("spotify", "restart")
     ok = pi_raspotify_restart()
     return jsonify(ok=ok)
+
+# ===========================================================================
+# "Spotify fixen" -- zelfherstellende diagnose/reparatie voor de lokale
+# go-librespot (Spotify Connect). Streamt live acties/output (SSE) naar een
+# Spotify-stijl popup. Admin-only. Stappen: restart -> (logs) -> evt. update.
+# ===========================================================================
+GLR_BIN     = os.path.join(os.path.expanduser("~"), "go-librespot", "go-librespot")
+GLR_SERVICE = "go-librespot.service"
+GLR_REPO    = "devgianlu/go-librespot"
+# Laatst bekend-goede versie (bijgewerkt 2026-08-21). Fallback als de
+# GitHub-API onbereikbaar is.
+GLR_FALLBACK = {
+    "version": "0.9.0",
+    "url": "https://github.com/devgianlu/go-librespot/releases/download/v0.9.0/go-librespot_linux_x86_64.tar.gz",
+    "sha256": "87b27ce57cc7871bad6ffac8acba7e2a89c72a7e6c7990b88bec404f449f381e",
+}
+
+def _ver_tuple(v):
+    try: return tuple(int(x) for x in re.findall(r"\d+", str(v or ""))[:3]) or (0,)
+    except Exception: return (0,)
+
+def _glr_running_version():
+    try:
+        r = subprocess.run(["journalctl", "-u", GLR_SERVICE, "-n", "500", "--no-pager", "-o", "cat"],
+                           stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, timeout=8)
+        m = re.findall(r"running go-librespot ([0-9.]+)", r.stdout or "")
+        return m[-1] if m else ""
+    except Exception:
+        return ""
+
+def _glr_recent_log(seconds=300, lines=400):
+    try:
+        r = subprocess.run(["journalctl", "-u", GLR_SERVICE, "--since", "-%ds" % seconds,
+                            "-n", str(lines), "--no-pager", "-o", "cat"],
+                           stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, timeout=8)
+        return r.stdout or ""
+    except Exception:
+        return ""
+
+def _glr_status_dict():
+    try:
+        return json.loads(urllib.request.urlopen("http://%s/status" % VM_GLR_API, timeout=2).read().decode() or "{}")
+    except Exception:
+        return {}
+
+def _glr_service_active():
+    try:
+        r = subprocess.run(["systemctl", "is-active", GLR_SERVICE],
+                           stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, timeout=5)
+        return (r.stdout or "").strip() == "active"
+    except Exception:
+        return False
+
+def _glr_latest_release():
+    """Nieuwste release van GitHub (versie+download-URL+sha256). Fallback = GLR_FALLBACK."""
+    try:
+        req = urllib.request.Request("https://api.github.com/repos/%s/releases/latest" % GLR_REPO,
+                                     headers={"Accept": "application/vnd.github+json", "User-Agent": "omroepweb"})
+        d = json.loads(urllib.request.urlopen(req, timeout=8).read().decode())
+        ver = (d.get("tag_name") or "").lstrip("v")
+        asset = next((a for a in (d.get("assets") or []) if "linux_x86_64" in (a.get("name") or "")), None)
+        if ver and asset and asset.get("browser_download_url"):
+            sha = ""
+            dig = asset.get("digest") or ""
+            if isinstance(dig, str) and dig.startswith("sha256:"): sha = dig.split(":", 1)[1]
+            return {"version": ver, "url": asset["browser_download_url"], "sha256": sha}
+    except Exception:
+        pass
+    return dict(GLR_FALLBACK)
+
+def _glr_install(rel):
+    """Download+verifieer+installeer een go-librespot-binary. Yields (level,msg)."""
+    url = rel.get("url"); want = (rel.get("sha256") or "").lower()
+    tmpd = tempfile.mkdtemp(prefix="glrupd_")
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "omroepweb"})
+        data = urllib.request.urlopen(req, timeout=120).read()
+        got = hashlib.sha256(data).hexdigest()
+        if want and got != want:
+            yield ("err", "Checksum klopt niet -- update afgebroken (veiligheid)."); return
+        yield ("ok", "Gedownload (%d KB), checksum %s." % (len(data)//1024, "geverifieerd" if want else "n.v.t."))
+        tgz = os.path.join(tmpd, "glr.tar.gz"); open(tgz, "wb").write(data)
+        with tarfile.open(tgz) as t:
+            member = next((m for m in t.getmembers()
+                           if os.path.basename(m.name) == "go-librespot" and m.isfile()), None)
+            if not member:
+                yield ("err", "Geen go-librespot-binary in het archief -- afgebroken."); return
+            t.extract(member, tmpd)
+        newbin = os.path.join(tmpd, member.name)
+        bak = GLR_BIN + ".bak_" + datetime.now().strftime("%Y%m%d_%H%M%S")
+        shutil.copy2(GLR_BIN, bak)
+        shutil.copy2(newbin, GLR_BIN); os.chmod(GLR_BIN, 0o755)
+        yield ("ok", "Binary geinstalleerd (backup: %s)." % os.path.basename(bak))
+    except Exception as e:
+        yield ("err", "Update-fout: %s" % e)
+    finally:
+        shutil.rmtree(tmpd, ignore_errors=True)
+
+def _glr_rollback():
+    """Zet de meest recente backup-binary terug. Yields (level,msg)."""
+    try:
+        baks = glob.glob(GLR_BIN + ".bak_*") + glob.glob(GLR_BIN + ".0.*.bak_*")
+        baks = [b for b in baks if os.path.isfile(b)]
+        if not baks:
+            yield ("err", "Geen backup gevonden om naar terug te draaien."); return
+        src = max(baks, key=os.path.getmtime)
+        shutil.copy2(src, GLR_BIN); os.chmod(GLR_BIN, 0o755)
+        yield ("ok", "Vorige binary teruggezet (%s)." % os.path.basename(src))
+    except Exception as e:
+        yield ("err", "Terugdraaien mislukt: %s" % e)
+
+def _sse(obj):
+    return "data: %s\n\n" % json.dumps(obj)
+
+def _fix_wait_healthy(timeout=15):
+    end = time.time() + timeout; st = {}
+    while time.time() < end:
+        st = _glr_status_dict()
+        if st.get("username"): return st
+        time.sleep(1)
+    return st
+
+@app.route("/api/spotify/fix")
+def api_spotify_fix():
+    """SSE: zelfherstellende Spotify-reparatie. ?step=restart|deep|rollback.
+    Admin-only. Streamt live log-events naar de Spotify-fix-popup."""
+    if not is_logged_in(): abort(401)
+    if not is_admin(): abort(403)
+    step = (request.args.get("step") or "restart").strip()
+
+    def gen():
+        try:
+            if step == "restart":
+                yield _sse({"t": "log", "lvl": "info", "msg": "go-librespot herstarten..."})
+                ok = pi_raspotify_restart()
+                yield _sse({"t": "log", "lvl": ("ok" if ok else "err"),
+                            "msg": "Herstart-commando %s." % ("verstuurd" if ok else "MISLUKT")})
+                yield _sse({"t": "log", "lvl": "info", "msg": "Wachten tot Spotify inlogt..."})
+                st = _fix_wait_healthy(15)
+                if st.get("username"):
+                    yield _sse({"t": "log", "lvl": "ok",
+                                "msg": "Ingelogd als %s - device \"%s\" (%s)." % (
+                                    st.get("username","?"), st.get("device_name","?"), st.get("device_type","?"))})
+                    ver = _glr_running_version()
+                    if ver: yield _sse({"t": "log", "lvl": "info", "msg": "Draaiende versie: go-librespot %s." % ver})
+                    yield _sse({"t": "log", "lvl": "ok", "msg": "Spotify Connect is weer beschikbaar."})
+                    yield _sse({"t": "end", "result": "ask",
+                                "msg": "Herstart klaar. Werkt Spotify Connect nu op je telefoon?"})
+                else:
+                    yield _sse({"t": "log", "lvl": "err", "msg": "Nog niet ingelogd na de herstart."})
+                    yield _sse({"t": "end", "result": "ask",
+                                "msg": "Herstart klaar, maar inloggen liep niet vlot. Werkt het op je telefoon?"})
+
+            elif step == "deep":
+                yield _sse({"t": "log", "lvl": "info", "msg": "Logs analyseren..."})
+                logtxt = _glr_recent_log(300, 400)
+                miss   = logtxt.count("missing blob")
+                active = _glr_service_active()
+                st     = _glr_status_dict()
+                authed = bool(st.get("username"))
+                cur    = _glr_running_version()
+                yield _sse({"t": "log", "lvl": "info",
+                            "msg": "Service %s - %s - %dx 'missing blob' in recente logs." % (
+                                "actief" if active else "NIET actief",
+                                ("ingelogd" if authed else "niet ingelogd"), miss)})
+                did_update = False
+                if miss > 0:
+                    yield _sse({"t": "log", "lvl": "warn",
+                                "msg": "'missing blob' = de Spotify-app gebruikt een nieuwer Connect-protocol dan deze go-librespot aankan."})
+                    latest = _glr_latest_release()
+                    yield _sse({"t": "log", "lvl": "info",
+                                "msg": "Huidig: %s - nieuwste: %s." % (cur or "?", latest.get("version","?"))})
+                    if _ver_tuple(latest.get("version")) > _ver_tuple(cur):
+                        yield _sse({"t": "log", "lvl": "info", "msg": "Bijwerken naar %s..." % latest.get("version")})
+                        for lvl, msg in _glr_install(latest):
+                            yield _sse({"t": "log", "lvl": lvl, "msg": msg})
+                            if lvl == "err":
+                                yield _sse({"t": "end", "result": "fail",
+                                            "msg": "Bijwerken is niet gelukt. Details staan hierboven."}); return
+                        did_update = True
+                    else:
+                        yield _sse({"t": "log", "lvl": "info", "msg": "Al op de nieuwste versie -- een herstart proberen."})
+                else:
+                    yield _sse({"t": "log", "lvl": "info", "msg": "Geen 'missing blob'-fout -- waarschijnlijk een tijdelijke hapering; herstart proberen."})
+                yield _sse({"t": "log", "lvl": "info", "msg": "go-librespot herstarten..."})
+                pi_raspotify_restart()
+                st = _fix_wait_healthy(16)
+                ver2 = _glr_running_version()
+                if st.get("username"):
+                    yield _sse({"t": "log", "lvl": "ok",
+                                "msg": "Ingelogd als %s - versie %s." % (st.get("username","?"), ver2 or "?")})
+                    yield _sse({"t": "end", "result": "ask",
+                                "msg": ("Bijgewerkt naar %s en herstart. " % ver2 if did_update else "Herstart klaar. ")
+                                       + "Werkt Spotify Connect nu op je telefoon?"})
+                else:
+                    yield _sse({"t": "log", "lvl": "err", "msg": "go-librespot logt niet in na de reparatie."})
+                    yield _sse({"t": "end", "result": "fail",
+                                "msg": "Automatische reparatie uitgeput. Je kunt terugdraaien naar de vorige versie of de logs bekijken.",
+                                "can_rollback": True})
+
+            elif step == "rollback":
+                yield _sse({"t": "log", "lvl": "info", "msg": "Vorige go-librespot-versie terugzetten..."})
+                for lvl, msg in _glr_rollback():
+                    yield _sse({"t": "log", "lvl": lvl, "msg": msg})
+                pi_raspotify_restart()
+                st = _fix_wait_healthy(15)
+                if st.get("username"):
+                    yield _sse({"t": "log", "lvl": "ok", "msg": "Teruggezet en ingelogd als %s (versie %s)." % (
+                                st.get("username","?"), _glr_running_version() or "?")})
+                    yield _sse({"t": "end", "result": "ask", "msg": "Teruggedraaid. Werkt Spotify Connect nu?"})
+                else:
+                    yield _sse({"t": "end", "result": "fail", "msg": "Ook na terugdraaien geen login. Bekijk de logs handmatig."})
+            else:
+                yield _sse({"t": "end", "result": "fail", "msg": "Onbekende stap."})
+            log_action("Spotify-fix uitgevoerd (stap: %s)" % step, source="admin")
+        except GeneratorExit:
+            pass
+        except Exception as e:
+            yield _sse({"t": "log", "lvl": "err", "msg": "Onverwachte fout: %s" % e})
+            yield _sse({"t": "end", "result": "fail", "msg": "Er ging iets mis tijdens de reparatie."})
+
+    resp = Response(gen(), mimetype="text/event-stream")
+    resp.headers["Cache-Control"] = "no-cache, no-store"
+    resp.headers["X-Accel-Buffering"] = "no"
+    return resp
 
 @app.route("/api/pi/spotify/set_mode", methods=["POST"])
 def api_pi_sp_set_mode():

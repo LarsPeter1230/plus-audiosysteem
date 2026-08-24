@@ -1,3 +1,5 @@
+> **⚠️ VERWIJDERD in v7.12.0 (2026-08-24).** De Spotify-Automix/GUI-desktopomgeving is volledig ontmanteld: code, UI, de VM-desktop-services (Xvfb/openbox/x11vnc/spotify-gui/pulseaudio-store), de RDP-toegang (xrdp) en de bijbehorende pakketten zijn verwijderd. Spotify draait ongewijzigd via go-librespot (SPOT). Dit document blijft alleen als historische referentie.
+
 # GUI-Spotify (Automix) op de VM — ontwerp & plan
 
 **Status:** **Fase 0 gebouwd en draaiend** (2026-08-09). Wacht nu op één menselijke stap: inloggen via RDP + verifiëren dat Automix zichtbaar is. Daarna kan Fase 1.

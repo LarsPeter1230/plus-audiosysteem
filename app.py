@@ -116,7 +116,7 @@ def _save_json(path, obj):
 # State laden
 # ──────────────────────────────────────────────
 SETTINGS_DEFAULTS = {
-    "version": "v7.13.0",
+    "version": "v7.13.1",
     "onboarded": False,           # eerste-keer-wizard doorlopen? (verse install = False)
     "demo_mode": False,           # demo: audio via dit apparaat (laptop), geen winkelhardware
     "eq_spot": [50, 50, 50, 50, 50, 50, 50, 50, 50, 50],   # 10-band Spotify-EQ (0-100, 50=vlak)
@@ -1603,13 +1603,52 @@ _explicit_name       = ""
 def explicit_blocked() -> bool:
     return _explicit_active
 
+# ── Intern (via onze eigen API) afgespeelde nummers ──────────────
+# Nummers die via de app zélf worden afgespeeld of in de wachtrij gezet
+# (Muziek → Spotify, automatiseringen, webhooks → /api/spotify/play + /queue) zijn
+# "intern" en vertrouwd: die worden NOOIT om explicit-redenen overgeslagen, ook niet
+# als de globale explicit-schakelaar aanstaat. Alleen een EXTERNE Connect-cast
+# (iemands eigen telefoon) valt onder het explicit-filter.
+_INTERNAL_URIS      = {}          # uri -> vervaltijd (epoch)
+_INTERNAL_URIS_LOCK = threading.Lock()
+_INTERNAL_URI_TTL   = 6 * 3600    # 6 uur geldig (ruim genoeg voor een wachtrij)
+
+def _mark_internal_uri(uri: str):
+    """Markeer een track-uri als 'intern afgespeeld' (vrijgesteld van explicit-skip)."""
+    uri = (uri or "").strip()
+    if not uri:
+        return
+    now = time.time()
+    with _INTERNAL_URIS_LOCK:
+        _INTERNAL_URIS[uri] = now + _INTERNAL_URI_TTL
+        if len(_INTERNAL_URIS) > 300:      # opruimen zodat de dict niet blijft groeien
+            for k in [k for k, exp in list(_INTERNAL_URIS.items()) if exp < now]:
+                _INTERNAL_URIS.pop(k, None)
+
+def _is_internal_uri(uri: str) -> bool:
+    uri = (uri or "").strip()
+    if not uri:
+        return False
+    with _INTERNAL_URIS_LOCK:
+        exp = _INTERNAL_URIS.get(uri)
+        if exp is None:
+            return False
+        if exp < time.time():
+            _INTERNAL_URIS.pop(uri, None)
+            return False
+        return True
+
 def _explicit_skip_active(np) -> bool:
     """True als een expliciet nummer voor DEZE caster moet worden gedempt +
-    overgeslagen. Vereist de globale schakelaar (settings.explicit_skip) én dat de
-    castende Spotify-account (np.played_by, zoals getoond onder 'gecast door' en in
-    de historie) NIET op de uitzonderingenlijst staat. Matcht op naam, hoofd-/
+    overgeslagen. Vereist de globale schakelaar (settings.explicit_skip) én dat het
+    nummer NIET via onze eigen API is afgespeeld (interne API = altijd toegestaan) én
+    dat de castende Spotify-account (np.played_by, zoals getoond onder 'gecast door'
+    en in de historie) NIET op de uitzonderingenlijst staat. Matcht op naam, hoofd-/
     kleine letters maken niet uit."""
     if not settings.get("explicit_skip"):
+        return False
+    # Via onze eigen API afgespeeld → vertrouwd, nooit om explicit-reden overslaan.
+    if _is_internal_uri((np or {}).get("uri")):
         return False
     caster = ((np or {}).get("played_by") or "").strip().lower()
     if caster:
@@ -4735,6 +4774,7 @@ def api_spotify_play():
     if not uri: return jsonify(ok=False, error="no_uri"), 400
     # V7: rechtstreeks op de lokale go-librespot afspelen. Werkt ongeacht welk
     # account er cast (de huis-Web-API ziet het device niet als een gast host).
+    _mark_internal_uri(uri)                 # via onze eigen API → vrijgesteld van explicit-skip
     if PI_LOCAL_GLR:
         ok = _glr_post("/player/play", json.dumps({"uri": uri}))
         log_action(f"Spotify: afspelen {uri}", source="spotify")
@@ -4791,6 +4831,7 @@ def _sp_queue_tick():
     if not head:
         return
     if d.get("stopped"):                              # niets speelt → meteen starten
+        _mark_internal_uri(head["uri"])               # onze wachtrij → vrijgesteld van explicit-skip
         if _glr_post("/player/play", json.dumps({"uri": head["uri"]})):
             with _sp_queue_lock: _sp_committed["uri"] = head["uri"]
         return
@@ -4798,6 +4839,7 @@ def _sp_queue_tick():
     except Exception: pos = dur = 0
     # bijna klaar → het volgende nummer in de native queue zetten (vóór autoplay)
     if dur > 0 and head["uri"] not in (committed, cur) and (dur - pos) <= 12000:
+        _mark_internal_uri(head["uri"])               # onze wachtrij → vrijgesteld van explicit-skip
         if _glr_post("/player/add_to_queue", json.dumps({"uri": head["uri"]})):
             with _sp_queue_lock: _sp_committed["uri"] = head["uri"]
 
@@ -4807,6 +4849,7 @@ def api_spotify_queue_add():
     j = request.get_json(silent=True) or {}
     uri = (j.get("uri") or "").strip()
     if not uri: return jsonify(ok=False, error="no_uri"), 400
+    _mark_internal_uri(uri)                 # via onze eigen API → vrijgesteld van explicit-skip
     by = (current_user().get("display_name") or current_username() or "").strip()
     with _sp_queue_lock:
         _sp_queue.append({"uri": uri, "name": j.get("name", ""), "artist": j.get("artist", ""),
@@ -4873,6 +4916,7 @@ def api_pi_sp_next():
             head = _sp_queue[0] if _sp_queue else None
             committed = _sp_committed.get("uri")
     if head and head.get("uri") != committed:
+        _mark_internal_uri(head["uri"])               # onze wachtrij → vrijgesteld van explicit-skip
         ok = _glr_post("/player/play", json.dumps({"uri": head["uri"]}))
     else:
         ok = _glr_post("/player/next")

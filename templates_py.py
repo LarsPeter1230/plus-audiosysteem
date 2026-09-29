@@ -3380,6 +3380,7 @@ BEHEER_BODY = """
       <div class="label">Uitzonderingen &mdash; deze casters mogen w&eacute;l expliciet</div>
       <textarea class="input" id="expAllow" rows="3" style="resize:vertical" placeholder="E&eacute;n naam per regel, bijv.&#10;David de Ruiter">{{ (settings.explicit_allow_users or [])|join('\n') }}</textarea>
       <div class="help" style="margin-top:6px">Vul de naam in zoals die onder <b>&ldquo;gecast door&rdquo;</b> en in de <b>historie</b> verschijnt (de Spotify-accountnaam). Hoofd-/kleine letters maken niet uit. Alleen van toepassing als overslaan hierboven aanstaat.</div>
+      <div class="help" style="margin-top:6px"><span class="mi mi-sm" style="vertical-align:middle;color:#4b7a12">check_circle</span> Nummers die je <b>via de app zelf</b> afspeelt of in de wachtrij zet (Muziek &rarr; Spotify, automatiseringen, webhooks) worden <b>nooit</b> overgeslagen &mdash; ook niet als ze expliciet zijn. Het filter geldt alleen voor iemand die met een <b>eigen telefoon</b> naar de speaker cast.</div>
     </div>
     <div style="display:flex;align-items:center;gap:12px;margin-top:12px">
       <button class="btn btn-sm btn-inline" style="width:auto" onclick="expSave()"><span class="mi">save</span> Opslaan</button>

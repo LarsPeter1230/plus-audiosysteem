@@ -116,7 +116,7 @@ def _save_json(path, obj):
 # State laden
 # ──────────────────────────────────────────────
 SETTINGS_DEFAULTS = {
-    "version": "v7.5.1",
+    "version": "v7.13.0",
     "onboarded": False,           # eerste-keer-wizard doorlopen? (verse install = False)
     "demo_mode": False,           # demo: audio via dit apparaat (laptop), geen winkelhardware
     "eq_spot": [50, 50, 50, 50, 50, 50, 50, 50, 50, 50],   # 10-band Spotify-EQ (0-100, 50=vlak)
@@ -156,6 +156,8 @@ SETTINGS_DEFAULTS = {
     "icecast_mount": "/rca",
     "icecast_admin_user": "admin",
     "icecast_admin_pass": "",     # secret — echte waarde staat in ~/omroepweb/settings.json (niet in de code)
+    "explicit_skip": False,    # expliciete Spotify-nummers automatisch dempen + overslaan
+    "explicit_allow_users": [],# casternamen (zoals 'gecast door'/historie) die WEL explicit mogen
     "commercial_duck_spotify": True,  # reclame op PLUS Radio → Spotify dempen + RCA laten spelen
     "commercial_replay": False,    # experimenteel: commercial (incl. gemist begin) vertraagd over Spotify
     "ha_webhook_ip": "",  # webhooks vanaf dit IP = Home Assistant (eigen logcategorie)
@@ -1601,6 +1603,22 @@ _explicit_name       = ""
 def explicit_blocked() -> bool:
     return _explicit_active
 
+def _explicit_skip_active(np) -> bool:
+    """True als een expliciet nummer voor DEZE caster moet worden gedempt +
+    overgeslagen. Vereist de globale schakelaar (settings.explicit_skip) én dat de
+    castende Spotify-account (np.played_by, zoals getoond onder 'gecast door' en in
+    de historie) NIET op de uitzonderingenlijst staat. Matcht op naam, hoofd-/
+    kleine letters maken niet uit."""
+    if not settings.get("explicit_skip"):
+        return False
+    caster = ((np or {}).get("played_by") or "").strip().lower()
+    if caster:
+        allow = [str(x).strip().lower()
+                 for x in (settings.get("explicit_allow_users") or []) if str(x).strip()]
+        if caster in allow:
+            return False
+    return True
+
 def _play_explicit_alert(gain: float = 1.5):
     # Niet over een lopende omroep/TTS heen spelen (pst is dan bezet).
     if os.path.exists(EXPLICIT_WAV) and _active_pst_proc is None:
@@ -1727,7 +1745,9 @@ def _explicit_guard_tick():
             is_exp = True
         elif tid:                          # go-librespot: opzoeken (gecachet)
             is_exp = bool(_track_is_explicit(tid))
-    if is_exp:
+    # Alleen ingrijpen als de winkel explicit wil blokkeren én deze caster geen
+    # uitzondering is; anders speelt het expliciete nummer gewoon door.
+    if is_exp and _explicit_skip_active(np):
         # Nieuw nummer = eerste detectie, óf een ánder explicit-nummer dan de
         # vorige (bijv. het volgende bleek óók explicit → opnieuw skippen).
         new_track = (not _explicit_active) or (tid and tid != _explicit_track)
@@ -5204,6 +5224,34 @@ def api_spotify_comm_toggle():
         _comm_ring_ensure()           # ringbuffer-opname aan/uit volgens setting
     log_action("Spotify-reclame-instelling aangepast: " + key, source="admin")
     return jsonify(ok=True, on=settings[key])
+
+@app.route("/api/spotify/explicit", methods=["GET", "POST"])
+def api_spotify_explicit():
+    """Explicit-overslaan aan/uit + de lijst casternamen die het WEL mogen.
+    Namen worden ontdubbeld (case-insensitief) maar in de oorspronkelijke schrijf-
+    wijze bewaard."""
+    admin_required()
+    if request.method == "GET":
+        return jsonify(ok=True, skip=bool(settings.get("explicit_skip")),
+                       allow=settings.get("explicit_allow_users") or [])
+    data = request.get_json(silent=True) or {}
+    settings["explicit_skip"] = bool(data.get("skip"))
+    allow = data.get("allow")
+    if isinstance(allow, list):
+        seen, out = set(), []
+        for x in allow:
+            n = str(x).strip()
+            k = n.lower()
+            if n and k not in seen:
+                seen.add(k); out.append(n)
+        settings["explicit_allow_users"] = out
+    _save_json(SETTINGS_JSON, settings)
+    n_allow = len(settings.get("explicit_allow_users") or [])
+    log_action("Explicit-instelling aangepast: overslaan="
+               + ("aan" if settings["explicit_skip"] else "uit")
+               + f", uitzonderingen={n_allow}", source="admin")
+    return jsonify(ok=True, skip=settings["explicit_skip"],
+                   allow=settings.get("explicit_allow_users") or [])
 
 # ── EQ (Spotify + PLUS Radio, 10-band) ──────────────────────────────────────
 _EQ_DOMAIN = {"spot": ("spotify", "transport"), "bg": ("omroep", "channel")}

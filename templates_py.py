@@ -3374,6 +3374,32 @@ BEHEER_BODY = """
     </div>
   </div>
   <div class="beheer-card">
+    <h3 style="display:flex;align-items:center;gap:8px"><span class="mi" style="color:#c62828">explicit</span> Expliciete nummers</h3>
+    <label class="switch-row"><input type="checkbox" id="expSkipToggle" {{ 'checked' if settings.explicit_skip else '' }} onchange="expSave()"> <span>Expliciete Spotify-nummers automatisch overslaan<br><span class="help">Speelt iemand een als <b>expliciet</b> gemarkeerd nummer, dan klinkt kort een waarschuwing, wordt Spotify gedempt en automatisch doorgeskipt. Uit = expliciete nummers spelen gewoon door.</span></span></label>
+    <div style="margin-top:14px">
+      <div class="label">Uitzonderingen &mdash; deze casters mogen w&eacute;l expliciet</div>
+      <textarea class="input" id="expAllow" rows="3" style="resize:vertical" placeholder="E&eacute;n naam per regel, bijv.&#10;David de Ruiter">{{ (settings.explicit_allow_users or [])|join('\n') }}</textarea>
+      <div class="help" style="margin-top:6px">Vul de naam in zoals die onder <b>&ldquo;gecast door&rdquo;</b> en in de <b>historie</b> verschijnt (de Spotify-accountnaam). Hoofd-/kleine letters maken niet uit. Alleen van toepassing als overslaan hierboven aanstaat.</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px;margin-top:12px">
+      <button class="btn btn-sm btn-inline" style="width:auto" onclick="expSave()"><span class="mi">save</span> Opslaan</button>
+      <span id="expMsg" style="font-size:13px;display:none"></span>
+    </div>
+  </div>
+  <script>
+  function expSave(){
+    var skip=document.getElementById('expSkipToggle').checked;
+    var allow=(document.getElementById('expAllow').value||'').split('\\n').map(function(s){return s.trim();}).filter(Boolean);
+    fetch('/api/spotify/explicit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({skip:skip,allow:allow})})
+      .then(function(r){return r.json();}).then(function(j){
+        var m=document.getElementById('expMsg'); if(!m) return;
+        m.style.display='inline'; m.style.color=j.ok?'#4b7a12':'#c62828'; m.textContent=j.ok?'Opgeslagen':'Fout';
+        if(j.ok && j.allow) document.getElementById('expAllow').value=j.allow.join('\\n');
+        setTimeout(function(){m.style.display='none';},2500);
+      }).catch(function(){ var m=document.getElementById('expMsg'); if(m){m.style.display='inline';m.style.color='#c62828';m.textContent='Netwerkfout';} });
+  }
+  </script>
+  <div class="beheer-card">
     <h3 style="display:flex;align-items:center;gap:8px"><img src="{{ spotify_logo }}" alt="Spotify" style="height:20px"> Reclame over Spotify</h3>
     <label class="switch-row"><input type="checkbox" id="commDuckToggle" {{ 'checked' if settings.commercial_duck_spotify else '' }} onchange="spCommToggle('commercial_duck_spotify',this)"> <span>Spotify automatisch dempen tijdens een reclame</span></label>
     <label class="switch-row"><input type="checkbox" id="commReplayToggle" {{ 'checked' if settings.commercial_replay else '' }} onchange="spCommToggle('commercial_replay',this)"> <span>Reclame <b>tussen de nummers</b> over Spotify afspelen <span style="color:#b37e00;font-weight:700">(experimenteel)</span><br><span class="help">Neemt de reclame compleet op en speelt 'm af bij de e&eacute;rstvolgende nummerovergang &mdash; nooit midden in een nummer. Test op een rustig moment.</span></span></label>

@@ -3387,6 +3387,9 @@ BRAND_THEMES = {
         "leaf":     app.jinja_env.globals.get("leaf_logo"),     # groen blad (kaart-chips, log)
         "wordmark": app.jinja_env.globals.get("plus_wordmark"), # inline svg, currentColor
         "logo_boxed": False,
+        # App-brede pagina-achtergrond (groene PLUS-textuur). Per huisstijl aanpasbaar:
+        # zet hier een ander /static/-pad of laat weg (AH/Jumbo) voor een egale achtergrond.
+        "page_bg": "/static/plus_bg.jpg",
         "colors": {
             "primary": "#80bd1d", "primary_dark": "#6aa018",
             "primary_glow": "rgba(128,189,29,0.30)",
@@ -3466,6 +3469,20 @@ def branding_css(b=None):
     if b.get("logo_boxed"):
         # zelfstandig gekleurd tegel-logo leesbaar houden op de gekleurde balk
         css += ".topbar-logo img,.plus-login-header img{background:#fff;border-radius:8px;padding:4px;box-sizing:content-box}"
+    if b.get("page_bg"):
+        # App-brede huisstijl-achtergrond: de witte inhoudskaart zweeft op de
+        # merktextuur. Desktop: ruime marge rond de kaart toont de achtergrond.
+        # Mobiel: kaart niet meer rand-tot-rand maar met kleine marge + afronding,
+        # zodat de achtergrond ook op telefoon netjes zichtbaar is.
+        css += (
+            "body{background:%s url(%s) center center/cover no-repeat fixed}"
+            ".card{box-shadow:0 20px 55px rgba(0,0,0,.22)}"
+            "@media(max-width:720px){"
+            "body{background-attachment:scroll}"
+            ".wrap{padding:12px}"
+            ".card{border-radius:16px;width:100%%}"
+            "}"
+        ) % (c["primary"], b["page_bg"])
     css += "</style>"
     return css
 

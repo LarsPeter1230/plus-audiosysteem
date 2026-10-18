@@ -3479,8 +3479,8 @@ def branding_css(b=None):
             ".card{box-shadow:0 20px 55px rgba(0,0,0,.22)}"
             "@media(max-width:720px){"
             "body{background-attachment:scroll}"
-            ".wrap{padding:12px}"
-            ".card{border-radius:16px;width:100%%}"
+            ".wrap{padding:0}"
+            ".card{width:100%%;border-radius:22px 22px 0 0;margin-top:14px}"
             "}"
         ) % (c["primary"], b["page_bg"])
     css += "</style>"

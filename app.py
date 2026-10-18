@@ -2971,6 +2971,13 @@ def run_automation(a, test=False):
                 settings["rca_spotify_auto"] = (act.get("state") != "off")
                 try: _save_json(SETTINGS_JSON, settings)
                 except Exception: pass
+            elif typ == "rca_autostart":
+                # Of RCA bij service-/VM-herstart automatisch aan gaat (_startup_audio).
+                # UIT = een herstart laat de muziek uit (bijv. 's avonds/winkel dicht);
+                # de ochtend-automatisering zet 'm weer AAN.
+                settings["rca_autostart"] = (act.get("state") != "off")
+                try: _save_json(SETTINGS_JSON, settings)
+                except Exception: pass
             elif typ == "volume":
                 v = max(0, min(100, int(act.get("value", 65))))
                 set_bg_volume(v)
@@ -6450,6 +6457,8 @@ def _sanitize_automation(data, aid=None):
                 acts.append({"type": "rca", "state": "off" if a.get("state") == "off" else "on"})
             elif typ == "rca_auto":
                 acts.append({"type": "rca_auto", "state": "off" if a.get("state") == "off" else "on"})
+            elif typ == "rca_autostart":
+                acts.append({"type": "rca_autostart", "state": "off" if a.get("state") == "off" else "on"})
             elif typ == "volume":
                 acts.append({"type": "volume", "value": max(0, min(100, int(a.get("value", 65))))})
             elif typ == "channel":

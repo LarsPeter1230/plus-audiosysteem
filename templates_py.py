@@ -910,7 +910,7 @@ VOLUME_BODY = """
   .vol-chip{font-size:11px;padding:4px 9px}
   .vol-head{gap:10px}
 }
-.vol-controls .btn{width:auto;flex:1 1 120px}
+.vol-controls .btn{width:auto;flex:1 1 120px;border-radius:16px}
 .vol-controls .vol-step{flex:0 0 58px;font-size:22px;font-weight:800;padding:0}
 /* Bredere schermen: de volume-inhoud in een gecentreerde kolom i.p.v. links */
 @media(min-width:760px){ .vol-wrap{max-width:560px;margin-left:auto;margin-right:auto} }
